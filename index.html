@@ -9,6 +9,7 @@
 :root{
   --bg:#f6f5f2; --card:#fff; --ink:#1d2421; --muted:#667069; --line:#e3e1db;
   --kcal:#d97a2b; --prot:#2f7d5b; --warn:#b3261e; --accent:#2f7d5b; --track:#ebe9e3; --on-accent:#fff;
+  --m-breakfast:#b36b00; --m-lunch:#2b6cb0; --m-dinner:#7b4bb5; --m-snack:#c0365f; --m-other:#5c6660;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){ --bg:#141815; --card:#1d2420; --ink:#ecefec; --muted:#9aa59d; --line:#2c352f;
@@ -62,9 +63,17 @@ details summary{cursor:pointer;font-weight:600;min-height:32px}
 .seg{display:flex;gap:6px;flex-wrap:wrap}
 .seg button{flex:1;min-width:72px;padding:0 8px}
 .seg button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:600}
-.mealhead{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin:14px 0 2px;font-size:14px;font-weight:700}
-.mealhead:first-child{margin-top:0}
-.mealhead span{font-weight:400;color:var(--muted);font-size:13px}
+.mealgroup{--mc:var(--m-other);margin:12px 0;border:2px solid var(--mc);border-radius:12px;overflow:hidden;background:color-mix(in srgb, var(--mc) 7%, var(--card))}
+.mealgroup:first-child{margin-top:0}
+.mealgroup[data-m="breakfast"]{--mc:var(--m-breakfast)} .mealgroup[data-m="lunch"]{--mc:var(--m-lunch)}
+.mealgroup[data-m="dinner"]{--mc:var(--m-dinner)} .mealgroup[data-m="snack"]{--mc:var(--m-snack)}
+.mealhead{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 12px;background:var(--mc);color:#fff}
+.mealhead b{font-size:16px;letter-spacing:.03em;text-transform:uppercase}
+.mealhead span{font-size:13px;font-variant-numeric:tabular-nums;text-align:right}
+.mealgroup .entry{padding:10px 12px}
+.mealgroup .entry:first-of-type{border-top:0}
+.mealempty{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 12px;color:var(--muted);font-size:14px}
+.mealempty button{border:2px solid var(--mc);color:var(--ink);font-weight:600}
 .entry .main .actions button.pinned{color:var(--accent);font-weight:600}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .chips button{min-width:44px}
@@ -690,13 +699,16 @@ if (typeof module !== 'undefined') module.exports = {MEALS:MEALS,mealForHour:mea
   }
   function renderEntries(){
     var list = state.entries.filter(function(e){ return e.date===viewDate; });
-    if (!list.length){ $('entries').innerHTML = '<div class="note">Nothing logged for this day.</div>'; return; }
     var groups = MEALS.concat([['other','Other']]), html = '';
     groups.forEach(function(g){
       var items = list.filter(function(e){ return g[0]==='other' ? !MEALS.some(function(m){ return m[0]===e.meal; }) : e.meal===g[0]; });
-      if (!items.length) return;
+      if (!items.length && g[0]==='other') return;
       var k = 0, p = 0; items.forEach(function(e){ var n = entryTotals(e); k += n.kcal; p += n.protein; });
-      html += '<div class="mealhead"><span style="color:var(--ink);font-size:14px;font-weight:700">'+g[1]+'</span><span>'+fmt(k)+' kcal · '+fmt(p,1)+' g P</span></div>' + items.map(entryRow).join('');
+      html += '<div class="mealgroup" data-m="'+g[0]+'"><div class="mealhead"><b>'+g[1]+'</b><span>'
+        + (items.length ? fmt(k)+' kcal · '+fmt(p,1)+' g protein' : 'nothing yet') + '</span></div>'
+        + (items.length ? items.map(entryRow).join('')
+           : '<div class="mealempty"><span>No '+g[1].toLowerCase()+' logged</span><button type="button" class="small" data-mealadd="'+g[0]+'">Add</button></div>')
+        + '</div>';
     });
     $('entries').innerHTML = html;
   }
@@ -871,6 +883,11 @@ if (typeof module !== 'undefined') module.exports = {MEALS:MEALS,mealForHour:mea
 
   $('entries').addEventListener('click', function(ev){
     var b = ev.target.closest('button'); if(!b) return;
+    if (b.dataset.mealadd){
+      setMeal(b.dataset.mealadd); $('form').scrollIntoView({behavior:'smooth', block:'start'});
+      try{ $('foodSearch').focus({preventScroll:true}); }catch(e){}
+      return;
+    }
     if (b.dataset.pin){
       var pe = state.entries.filter(function(x){ return x.id===b.dataset.pin; })[0]; if (!pe) return;
       var pk = entryKey(pe), had = state.shortlist.some(function(x){ return x.key===pk; });
