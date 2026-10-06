@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Protein Pro</title>
+<style>
+:root{
+  --bg:#f6f5f2; --card:#fff; --ink:#1d2421; --muted:#667069; --line:#e3e1db;
+  --kcal:#d97a2b; --prot:#2f7d5b; --warn:#b3261e; --accent:#2f7d5b; --track:#ebe9e3;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#141815; --card:#1d2420; --ink:#ecefec; --muted:#9aa59d; --line:#2c352f;
+    --kcal:#f0a066; --prot:#6cc79b; --warn:#ff8a80; --accent:#6cc79b; --track:#2a332d; }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  padding:0 16px calc(32px + env(safe-area-inset-bottom))}
+main{max-width:560px;margin:0 auto}
+h1{font-size:20px;margin:18px 0 4px}
+h2{font-size:15px;margin:0 0 10px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin:12px 0}
+.datebar{display:flex;align-items:center;gap:8px;margin:8px 0}
+.datebar input{flex:1;min-width:0}
+button,input,select{font:inherit;color:inherit}
+input,select{width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--bg);min-height:44px}
+button{min-height:44px;padding:0 14px;border-radius:10px;border:1px solid var(--line);background:var(--card);cursor:pointer}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+@media (prefers-color-scheme: dark){ button.primary{color:#0d1410} }
+button.danger{color:var(--warn)}
+button.small{min-height:36px;padding:0 10px;font-size:14px}
+label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.meter{margin:10px 0}
+.meter .top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.meter .big{font-size:26px;font-weight:700}
+.meter .sub{font-size:13px;color:var(--muted)}
+.bar{height:12px;border-radius:6px;background:var(--track);overflow:hidden;margin-top:6px}
+.bar>i{display:block;height:100%;border-radius:6px}
+.over{color:var(--warn)}
+.entry{display:flex;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.entry:first-of-type{border-top:0}
+.entry .main{flex:1;min-width:0}
+.entry .name{font-weight:600;overflow-wrap:anywhere}
+.entry .meta{font-size:13px;color:var(--muted)}
+.entry .nums{text-align:right;font-size:14px;white-space:nowrap}
+.actions{display:flex;gap:6px;margin-top:6px}
+.note{font-size:13px;color:var(--muted)}
+.warnbox{border:1px solid var(--warn);color:var(--warn);border-radius:10px;padding:8px 10px;font-size:14px;margin:8px 0}
+.week .d{display:grid;grid-template-columns:44px 1fr 1fr;gap:8px;align-items:center;font-size:13px;margin:6px 0}
+.week .b{position:relative;height:18px;background:var(--track);border-radius:5px;overflow:hidden}
+.week .b i{position:absolute;left:0;top:0;bottom:0}
+.week .b span{position:absolute;left:6px;top:0;line-height:18px;font-size:12px}
+details summary{cursor:pointer;font-weight:600;min-height:32px}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<main>
+  <h1>Protein Pro</h1>
+  <div class="note">Calorie &amp; protein tracker. Numbers are estimates (±10–15%).</div>
+
+  <div class="datebar">
+    <button id="prev" aria-label="Previous day">‹</button>
+    <input type="date" id="date" aria-label="Date">
+    <button id="next" aria-label="Next day">›</button>
+    <button id="today">Today</button>
+  </div>
+
+  <section class="card" id="summary" aria-live="polite"></section>
+
+  <section class="card">
+    <h2 id="formTitle">Add food</h2>
+    <form id="form" autocomplete="off">
+      <label for="food">Food</label>
+      <select id="food" required></select>
+      <label for="cook">Cooking / state (match how you weighed it)</label>
+      <select id="cook" required></select>
+      <div class="row">
+        <div>
+          <label for="grams">Weight (g)</label>
+          <input id="grams" type="number" inputmode="decimal" min="1" max="5000" step="any" required placeholder="e.g. 150">
+        </div>
+        <div>
+          <label for="fat">Added oil/butter (tsp)</label>
+          <input id="fat" type="number" inputmode="decimal" min="0" max="20" step="0.5" placeholder="0">
+        </div>
+      </div>
+      <div class="note" id="preview" style="margin:10px 0"></div>
+      <div class="row">
+        <button type="submit" class="primary" id="submitBtn">Add</button>
+        <button type="button" id="cancelEdit" class="hidden">Cancel edit</button>
+      </div>
+    </form>
+    <details style="margin-top:12px">
+      <summary>Add a custom / packaged food</summary>
+      <form id="customForm" autocomplete="off">
+        <label for="cName">Name</label>
+        <input id="cName" required maxlength="60">
+        <div class="row">
+          <div><label for="cKcal">kcal per 100 g</label>
+            <input id="cKcal" type="number" inputmode="decimal" min="0" max="900" step="any" required></div>
+          <div><label for="cProt">Protein g per 100 g</label>
+            <input id="cProt" type="number" inputmode="decimal" min="0" max="100" step="any" required></div>
+        </div>
+        <button type="submit" style="margin-top:10px">Save food</button>
+      </form>
+    </details>
+  </section>
+
+  <section class="card">
+    <h2>Today's log</h2>
+    <div id="entries"></div>
+  </section>
+
+  <section class="card week">
+    <h2>Last 7 days</h2>
+    <div id="week"></div>
+    <div class="note" id="weekAvg"></div>
+  </section>
+
+  <section class="card">
+    <details id="settingsBox">
+      <summary>Settings &amp; targets</summary>
+      <div class="row">
+        <div><label for="sKg">Weight (kg)</label><input id="sKg" type="number" inputmode="decimal" step="0.1" min="30" max="250"></div>
+        <div><label for="sCm">Height (cm)</label><input id="sCm" type="number" inputmode="decimal" step="1" min="120" max="230"></div>
+        <div><label for="sAge">Age</label><input id="sAge" type="number" inputmode="numeric" step="1" min="15" max="90"></div>
+        <div><label for="sDef">Calorie deficit (%)</label><input id="sDef" type="number" inputmode="decimal" step="1" min="0" max="25"></div>
+      </div>
+      <label for="sAct">Activity</label>
+      <select id="sAct">
+        <option value="1.2">Sedentary</option>
+        <option value="1.375">Light (1–2 workouts/wk)</option>
+        <option value="1.45">3 workouts/wk (boxing ×2 + strength ×1)</option>
+        <option value="1.55">Moderate (4–5 workouts/wk)</option>
+        <option value="1.725">Very active</option>
+      </select>
+      <label for="sProt">Protein (g per kg body weight)</label>
+      <input id="sProt" type="number" inputmode="decimal" step="0.1" min="1.2" max="3">
+      <div class="note" id="targetInfo" style="margin-top:10px"></div>
+      <div class="row" style="margin-top:12px">
+        <button id="export" type="button">Export backup</button>
+        <button id="import" type="button">Import backup</button>
+      </div>
+      <input type="file" id="importFile" accept="application/json" class="hidden">
+      <div class="note" style="margin-top:10px">Data is stored only in this browser. Export a backup now and then, especially before clearing browser data.
+      General guidance, not medical advice.</div>
+    </details>
+  </section>
+</main>
+
+<script id="core">
+// ---------- Pure logic (also exercised by test.js) ----------
+var KCAL_PER_TSP_FAT = 40;   // ~4.5 g oil
+var CALORIE_FLOOR = 1200;
+
+// per 100 g: [label, kcal, protein]. Approximate USDA values; verify packaged foods against labels.
+var FOODS = [
+  {cat:'Meat & fish', id:'chicken-breast', name:'Chicken breast (skinless)', forms:[['Raw',120,22.5],['Grilled / baked / roasted',165,31],['Boiled / poached',151,30],['Pan-fried (oil not included)',165,31]]},
+  {cat:'Meat & fish', id:'chicken-thigh', name:'Chicken thigh (skinless)', forms:[['Raw',121,19.7],['Grilled / baked / roasted',179,24.8],['Pan-fried (oil not included)',185,25]]},
+  {cat:'Meat & fish', id:'beef-mince', name:'Beef mince (5% fat)', forms:[['Raw',137,21.4],['Pan-fried / browned (oil not included)',171,26]]},
+  {cat:'Meat & fish', id:'beef-steak', name:'Beef steak (lean sirloin)', forms:[['Raw',130,21],['Grilled / pan-fried (oil not included)',180,29]]},
+  {cat:'Meat & fish', id:'pork-loin', name:'Pork loin (lean)', forms:[['Raw',120,21],['Grilled / roasted',180,28]]},
+  {cat:'Meat & fish', id:'salmon', name:'Salmon', forms:[['Raw',208,20],['Baked / grilled / steamed',206,22]]},
+  {cat:'Meat & fish', id:'white-fish', name:'White fish (cod, etc.)', forms:[['Raw',82,18],['Baked / steamed / grilled',105,23]]},
+  {cat:'Meat & fish', id:'tuna-can', name:'Tuna, canned in water', forms:[['Drained',116,25.5]]},
+  {cat:'Meat & fish', id:'shrimp', name:'Shrimp / prawns', forms:[['Raw',85,20],['Cooked (boiled / grilled)',99,24]]},
+  {cat:'Eggs, dairy & plant protein', id:'egg', name:'Whole egg (edible part, no shell)', forms:[['Raw',143,12.6],['Boiled / poached',155,13],['Fried (oil not included)',196,13.6]]},
+  {cat:'Eggs, dairy & plant protein', id:'egg-white', name:'Egg white', forms:[['Raw',52,10.9],['Cooked',52,10.9]]},
+  {cat:'Eggs, dairy & plant protein', id:'greek-yogurt', name:'Greek yogurt (nonfat)', forms:[['As is',59,10.2]]},
+  {cat:'Eggs, dairy & plant protein', id:'cottage-cheese', name:'Cottage cheese (low fat)', forms:[['As is',82,11]]},
+  {cat:'Eggs, dairy & plant protein', id:'milk', name:'Milk (semi-skimmed)', forms:[['As is',47,3.4]]},
+  {cat:'Eggs, dairy & plant protein', id:'cheddar', name:'Cheddar cheese', forms:[['As is',403,25]]},
+  {cat:'Eggs, dairy & plant protein', id:'mozzarella', name:'Mozzarella (part-skim)', forms:[['As is',254,24]]},
+  {cat:'Eggs, dairy & plant protein', id:'whey', name:'Whey protein powder (typical)', forms:[['Powder',400,80]]},
+  {cat:'Eggs, dairy & plant protein', id:'tofu', name:'Tofu (firm)', forms:[['As is',144,17]]},
+  {cat:'Grains & starch', id:'white-rice', name:'White rice', forms:[['Dry (uncooked)',360,6.6],['Cooked (boiled / steamed)',130,2.7]]},
+  {cat:'Grains & starch', id:'brown-rice', name:'Brown rice', forms:[['Dry (uncooked)',362,7.5],['Cooked (boiled / steamed)',123,2.7]]},
+  {cat:'Grains & starch', id:'oats', name:'Rolled oats', forms:[['Dry',379,13.2],['Cooked with water',71,2.5]]},
+  {cat:'Grains & starch', id:'pasta', name:'Pasta (wheat)', forms:[['Dry (uncooked)',371,13],['Cooked (boiled)',158,5.8]]},
+  {cat:'Grains & starch', id:'quinoa', name:'Quinoa', forms:[['Dry (uncooked)',368,14.1],['Cooked (boiled)',120,4.4]]},
+  {cat:'Grains & starch', id:'bread-wholewheat', name:'Bread, wholewheat', forms:[['As is',247,13]]},
+  {cat:'Grains & starch', id:'bread-white', name:'Bread, white', forms:[['As is',265,9]]},
+  {cat:'Grains & starch', id:'potato', name:'Potato', forms:[['Raw',77,2],['Boiled',87,1.9],['Baked (with skin)',93,2.5]]},
+  {cat:'Grains & starch', id:'sweet-potato', name:'Sweet potato', forms:[['Raw',86,1.6],['Boiled',76,1.4],['Baked (with skin)',90,2]]},
+  {cat:'Legumes', id:'lentils', name:'Lentils', forms:[['Dry (uncooked)',352,24.6],['Cooked (boiled)',116,9]]},
+  {cat:'Legumes', id:'chickpeas', name:'Chickpeas', forms:[['Cooked / canned, drained',164,8.9]]},
+  {cat:'Legumes', id:'black-beans', name:'Black beans', forms:[['Cooked / canned, drained',132,8.9]]},
+  {cat:'Legumes', id:'edamame', name:'Edamame', forms:[['Cooked (boiled)',121,12]]},
+  {cat:'Fruit', id:'apple', name:'Apple', forms:[['Raw',52,0.3]]},
+  {cat:'Fruit', id:'banana', name:'Banana (peeled)', forms:[['Raw',89,1.1]]},
+  {cat:'Fruit', id:'orange', name:'Orange (peeled)', forms:[['Raw',47,0.9]]},
+  {cat:'Fruit', id:'blueberries', name:'Blueberries', forms:[['Raw',57,0.7]]},
+  {cat:'Fruit', id:'strawberries', name:'Strawberries', forms:[['Raw',32,0.7]]},
+  {cat:'Fruit', id:'grapes', name:'Grapes', forms:[['Raw',69,0.7]]},
+  {cat:'Fruit', id:'mango', name:'Mango', forms:[['Raw',60,0.8]]},
+  {cat:'Fruit', id:'pineapple', name:'Pineapple', forms:[['Raw',50,0.5]]},
+  {cat:'Fruit', id:'kiwi', name:'Kiwi', forms:[['Raw',61,1.1]]},
+  {cat:'Fruit', id:'pear', name:'Pear', forms:[['Raw',57,0.4]]},
+  {cat:'Fruit', id:'watermelon', name:'Watermelon', forms:[['Raw',30,0.6]]},
+  {cat:'Vegetables', id:'broccoli', name:'Broccoli', forms:[['Raw',34,2.8],['Steamed / boiled',35,2.4]]},
+  {cat:'Vegetables', id:'spinach', name:'Spinach', forms:[['Raw',23,2.9],['Cooked',23,3]]},
+  {cat:'Vegetables', id:'carrot', name:'Carrot', forms:[['Raw',41,0.9],['Boiled',35,0.8]]},
+  {cat:'Vegetables', id:'tomato', name:'Tomato', forms:[['Raw',18,0.9]]},
+  {cat:'Vegetables', id:'cucumber', name:'Cucumber', forms:[['Raw',15,0.7]]},
+  {cat:'Vegetables', id:'bell-pepper', name:'Bell pepper', forms:[['Raw',31,1]]},
+  {cat:'Vegetables', id:'zucchini', name:'Zucchini', forms:[['Raw',17,1.2],['Cooked (oil not included)',15,1.1]]},
+  {cat:'Vegetables', id:'mushrooms', name:'Mushrooms', forms:[['Raw',22,3.1],['Cooked (oil not included)',28,2.2]]},
+  {cat:'Fats & nuts', id:'avocado', name:'Avocado', forms:[['Raw',160,2]]},
+  {cat:'Fats & nuts', id:'almonds', name:'Almonds', forms:[['As is',579,21]]},
+  {cat:'Fats & nuts', id:'peanut-butter', name:'Peanut butter', forms:[['As is',588,25]]},
+  {cat:'Fats & nuts', id:'olive-oil', name:'Olive oil (by weight)', forms:[['As is',884,0]]}
+];
+
+function bmr(s){ return 10*s.kg + 6.25*s.cm - 5*s.age - 161; }   // Mifflin-St Jeor, female
+function targets(s){
+  var tdee = bmr(s) * s.activity;
+  var kcal = Math.max(CALORIE_FLOOR, Math.round(tdee*(1 - s.deficitPct/100)/10)*10);
+  return {bmr:Math.round(bmr(s)), tdee:Math.round(tdee), kcal:kcal, protein:Math.round(s.kg*s.proteinPerKg)};
+}
+function entryNutrition(per100, grams, fatTsp){
+  grams = Number(grams)||0; fatTsp = Number(fatTsp)||0;
+  return {kcal: per100.kcal*grams/100 + fatTsp*KCAL_PER_TSP_FAT, protein: per100.protein*grams/100};
+}
+function entryTotals(e){ return entryNutrition({kcal:e.kcal100, protein:e.p100}, e.grams, e.fatTsp); }
+function totalsFor(entries, date){
+  var t = {kcal:0, protein:0, count:0};
+  entries.forEach(function(e){ if(e.date===date){ var n=entryTotals(e); t.kcal+=n.kcal; t.protein+=n.protein; t.count++; } });
+  return t;
+}
+function addDays(dateStr, n){
+  var p = dateStr.split('-').map(Number), d = new Date(p[0], p[1]-1, p[2]+n);
+  return fmtDate(d);
+}
+function fmtDate(d){
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function lastDays(entries, endDate, n){
+  var out=[]; for(var i=n-1;i>=0;i--){ var d=addDays(endDate,-i); var t=totalsFor(entries,d); out.push({date:d,kcal:t.kcal,protein:t.protein,count:t.count}); }
+  return out;
+}
+if (typeof module !== 'undefined') module.exports = {bmr:bmr,targets:targets,entryNutrition:entryNutrition,totalsFor:totalsFor,addDays:addDays,lastDays:lastDays,FOODS:FOODS,fmtDate:fmtDate};
+</script>
+
+<script id="app">
+(function(){
+  if (typeof document === 'undefined') return;
+  var KEY = 'proteinpro.v1';
+  var DEFAULTS = {kg:52, cm:160, age:33, activity:1.45, deficitPct:15, proteinPerKg:1.9};
+  var state = load();
+  var viewDate = fmtDate(new Date());
+  var editingId = null;
+  var $ = function(id){ return document.getElementById(id); };
+
+  function load(){
+    try{
+      var s = JSON.parse(localStorage.getItem(KEY));
+      if (s && s.entries) return {settings:Object.assign({}, DEFAULTS, s.settings), customFoods:s.customFoods||[], entries:s.entries};
+    }catch(e){}
+    return {settings:Object.assign({}, DEFAULTS), customFoods:[], entries:[]};
+  }
+  function save(){ try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){ alert('Could not save: browser storage is unavailable.'); } }
+  function esc(s){ return String(s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function allFoods(){
+    return FOODS.concat(state.customFoods.map(function(c){ return {cat:'My foods', id:c.id, name:c.name, forms:[['As is',c.kcal,c.protein]], custom:true}; }));
+  }
+  function findFood(id){ return allFoods().filter(function(f){ return f.id===id; })[0]; }
+  function fmt(n,d){ return Number(n).toLocaleString(undefined,{maximumFractionDigits:d||0}); }
+
+  function renderFoodSelect(selectedId){
+    var cats = {}, order = [];
+    allFoods().forEach(function(f){ if(!cats[f.cat]){cats[f.cat]=[];order.push(f.cat);} cats[f.cat].push(f); });
+    $('food').innerHTML = order.map(function(c){
+      return '<optgroup label="'+esc(c)+'">'+cats[c].map(function(f){ return '<option value="'+esc(f.id)+'">'+esc(f.name)+'</option>'; }).join('')+'</optgroup>';
+    }).join('');
+    if (selectedId) $('food').value = selectedId;
+    renderCook();
+  }
+  function renderCook(sel){
+    var f = findFood($('food').value);
+    $('cook').innerHTML = f ? f.forms.map(function(x,i){ return '<option value="'+i+'">'+esc(x[0])+'</option>'; }).join('') : '';
+    if (sel!=null) $('cook').value = sel;
+    preview();
+  }
+  function currentPer100(){
+    var f = findFood($('food').value); if(!f) return null;
+    var x = f.forms[Number($('cook').value)||0]; if(!x) return null;
+    return {food:f, form:x[0], kcal:x[1], protein:x[2]};
+  }
+  function preview(){
+    var p = currentPer100(), g = Number($('grams').value);
+    if (!p){ $('preview').textContent=''; return; }
+    var n = entryNutrition(p, g, $('fat').value);
+    $('preview').textContent = (g>0 ? fmt(n.kcal)+' kcal · '+fmt(n.protein,1)+' g protein' : 'Enter a weight')
+      + '  (per 100 g: '+fmt(p.kcal)+' kcal, '+fmt(p.protein,1)+' g protein)';
+  }
+
+  function barHtml(pct, color){ return '<div class="bar"><i style="width:'+Math.min(100,pct)+'%;background:'+color+'"></i></div>'; }
+  function renderSummary(){
+    var t = totalsFor(state.entries, viewDate), g = targets(state.settings);
+    var kLeft = g.kcal - t.kcal, pLeft = g.protein - t.protein;
+    var html = '';
+    html += '<div class="meter"><div class="top"><span class="big">'+fmt(t.kcal)+'</span><span class="sub">of '+fmt(g.kcal)+' kcal</span></div>'
+      + barHtml(100*t.kcal/g.kcal, 'var(--kcal)')
+      + '<div class="sub '+(kLeft<0?'over':'')+'">'+(kLeft>=0 ? fmt(kLeft)+' kcal left' : fmt(-kLeft)+' kcal over target')+'</div></div>';
+    html += '<div class="meter"><div class="top"><span class="big">'+fmt(t.protein,1)+' g</span><span class="sub">of '+fmt(g.protein)+' g protein</span></div>'
+      + barHtml(100*t.protein/g.protein, 'var(--prot)')
+      + '<div class="sub">'+(pLeft>0 ? fmt(pLeft,1)+' g to go' : 'Protein target reached')+'</div></div>';
+    if (t.kcal>0 && t.kcal < CALORIE_FLOOR && viewDate<fmtDate(new Date())) html += '<div class="warnbox">Under '+CALORIE_FLOOR+' kcal. Eating this little tends to cost muscle and backfire. Check you logged everything.</div>';
+    $('summary').innerHTML = html;
+  }
+  function renderEntries(){
+    var list = state.entries.filter(function(e){ return e.date===viewDate; });
+    $('entries').innerHTML = list.length ? list.map(function(e){
+      var n = entryTotals(e);
+      return '<div class="entry"><div class="main"><div class="name">'+esc(e.name)+'</div>'
+        + '<div class="meta">'+esc(e.form)+' · '+fmt(e.grams,1)+' g'+(e.fatTsp>0?' · +'+fmt(e.fatTsp,1)+' tsp oil':'')+'</div>'
+        + '<div class="actions"><button class="small" data-edit="'+esc(e.id)+'">Edit</button><button class="small danger" data-del="'+esc(e.id)+'">Delete</button></div></div>'
+        + '<div class="nums"><b>'+fmt(n.kcal)+'</b> kcal<br>'+fmt(n.protein,1)+' g P</div></div>';
+    }).join('') : '<div class="note">Nothing logged for this day.</div>';
+  }
+  function renderWeek(){
+    var g = targets(state.settings), days = lastDays(state.entries, viewDate, 7);
+    $('week').innerHTML = '<div class="d note"><span></span><span>kcal</span><span>protein</span></div>' + days.map(function(d){
+      var lbl = new Date(d.date+'T00:00').toLocaleDateString(undefined,{weekday:'short'});
+      return '<div class="d"><span>'+lbl+'</span>'
+        + '<div class="b"><i style="width:'+Math.min(100,100*d.kcal/g.kcal)+'%;background:var(--kcal);opacity:.55"></i><span>'+(d.count?fmt(d.kcal):'–')+'</span></div>'
+        + '<div class="b"><i style="width:'+Math.min(100,100*d.protein/g.protein)+'%;background:var(--prot);opacity:.55"></i><span>'+(d.count?fmt(d.protein)+' g':'–')+'</span></div></div>';
+    }).join('');
+    var logged = days.filter(function(d){ return d.count; });
+    $('weekAvg').textContent = logged.length ? 'Average over '+logged.length+' logged day'+(logged.length>1?'s':'')+': '
+      + fmt(logged.reduce(function(a,d){return a+d.kcal;},0)/logged.length)+' kcal, '
+      + fmt(logged.reduce(function(a,d){return a+d.protein;},0)/logged.length)+' g protein. Judge progress by the weekly trend, not one day.' : '';
+  }
+  function renderSettings(){
+    var s = state.settings, t = targets(s);
+    $('sKg').value=s.kg; $('sCm').value=s.cm; $('sAge').value=s.age; $('sDef').value=s.deficitPct;
+    $('sAct').value=String(s.activity); $('sProt').value=s.proteinPerKg;
+    $('targetInfo').textContent = 'BMR ≈ '+t.bmr+' kcal · maintenance ≈ '+t.tdee+' kcal · target '+t.kcal+' kcal & '+t.protein+' g protein'
+      + (t.kcal===CALORIE_FLOOR ? ' (held at the '+CALORIE_FLOOR+' kcal floor)' : '');
+  }
+  function renderAll(){
+    $('date').value = viewDate;
+    renderSummary(); renderEntries(); renderWeek(); renderSettings();
+  }
+
+  function resetForm(){
+    editingId=null; $('form').reset(); $('formTitle').textContent='Add food'; $('submitBtn').textContent='Add';
+    $('cancelEdit').classList.add('hidden'); renderCook(0);
+  }
+
+  $('food').addEventListener('change', function(){ renderCook(0); });
+  ['cook','grams','fat'].forEach(function(id){ $(id).addEventListener('input', preview); });
+
+  $('form').addEventListener('submit', function(ev){
+    ev.preventDefault();
+    var p = currentPer100(), grams = Number($('grams').value), fat = Number($('fat').value)||0;
+    if (!p || !(grams>0)) return;
+    var rec = {id: editingId || ('e'+Date.now()+Math.random().toString(36).slice(2,6)), date:viewDate,
+      name:p.food.name, form:p.form, kcal100:p.kcal, p100:p.protein, grams:grams, fatTsp:fat};
+    if (editingId){
+      var i = state.entries.findIndex(function(e){ return e.id===editingId; });
+      if (i>=0){ rec.date = state.entries[i].date; state.entries[i]=rec; }
+    } else state.entries.push(rec);
+    save(); resetForm(); renderAll();
+  });
+  $('cancelEdit').addEventListener('click', resetForm);
+
+  $('entries').addEventListener('click', function(ev){
+    var b = ev.target.closest('button'); if(!b) return;
+    if (b.dataset.del){
+      var e = state.entries.filter(function(x){ return x.id===b.dataset.del; })[0];
+      if (e && confirm('Delete "'+e.name+'" ('+e.grams+' g)?')){
+        state.entries = state.entries.filter(function(x){ return x.id!==e.id; }); save(); if(editingId===e.id) resetForm(); renderAll();
+      }
+    } else if (b.dataset.edit){
+      var en = state.entries.filter(function(x){ return x.id===b.dataset.edit; })[0]; if(!en) return;
+      var food = allFoods().filter(function(f){ return f.name===en.name; })[0];
+      editingId = en.id;
+      if (food){ $('food').value = food.id; renderCook(); var fi = food.forms.findIndex(function(x){ return x[0]===en.form; }); $('cook').value = String(fi<0?0:fi); }
+      $('grams').value = en.grams; $('fat').value = en.fatTsp||''; preview();
+      $('formTitle').textContent='Edit entry'; $('submitBtn').textContent='Save changes'; $('cancelEdit').classList.remove('hidden');
+      $('form').scrollIntoView({behavior:'smooth', block:'start'});
+    }
+  });
+
+  $('customForm').addEventListener('submit', function(ev){
+    ev.preventDefault();
+    var name = $('cName').value.trim(), k = Number($('cKcal').value), p = Number($('cProt').value);
+    if (!name || !(k>=0) || !(p>=0)) return;
+    var id = 'c'+Date.now();
+    state.customFoods.push({id:id, name:name, kcal:k, protein:p}); save();
+    $('customForm').reset(); renderFoodSelect(id);
+    alert('Saved. It now appears under "My foods" in the food list.');
+  });
+
+  function shift(n){ viewDate = addDays(viewDate, n); renderAll(); }
+  $('prev').onclick=function(){ shift(-1); }; $('next').onclick=function(){ shift(1); };
+  $('today').onclick=function(){ viewDate=fmtDate(new Date()); renderAll(); };
+  $('date').addEventListener('change', function(){ if($('date').value){ viewDate=$('date').value; renderAll(); } });
+
+  function readSettings(){
+    var s = {kg:Number($('sKg').value), cm:Number($('sCm').value), age:Number($('sAge').value), deficitPct:Number($('sDef').value),
+      activity:Number($('sAct').value), proteinPerKg:Number($('sProt').value)};
+    if (!(s.kg>=30&&s.cm>=120&&s.age>=15&&s.deficitPct>=0&&s.deficitPct<=25&&s.proteinPerKg>=1.2)) return;
+    state.settings = s; save(); renderSummary(); renderWeek();
+    var t = targets(s);
+    $('targetInfo').textContent = 'BMR ≈ '+t.bmr+' kcal · maintenance ≈ '+t.tdee+' kcal · target '+t.kcal+' kcal & '+t.protein+' g protein'
+      + (t.kcal===CALORIE_FLOOR ? ' (held at the '+CALORIE_FLOOR+' kcal floor)' : '');
+  }
+  ['sKg','sCm','sAge','sDef','sAct','sProt'].forEach(function(id){ $(id).addEventListener('input', readSettings); });
+
+  $('export').onclick=function(){
+    var blob = new Blob([JSON.stringify(state,null,2)], {type:'application/json'});
+    var a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='protein-pro-backup-'+fmtDate(new Date())+'.json';
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(function(){ URL.revokeObjectURL(a.href); },1000);
+  };
+  $('import').onclick=function(){ $('importFile').click(); };
+  $('importFile').addEventListener('change', function(){
+    var f = this.files[0]; if(!f) return;
+    var r = new FileReader();
+    r.onload = function(){
+      try{
+        var d = JSON.parse(r.result);
+        if (!d || !Array.isArray(d.entries)) throw new Error('bad file');
+        if (!confirm('Replace all current data with this backup?')) return;
+        state = {settings:Object.assign({}, DEFAULTS, d.settings), customFoods:Array.isArray(d.customFoods)?d.customFoods:[], entries:d.entries};
+        save(); renderFoodSelect(); renderAll();
+      }catch(e){ alert('That file is not a valid backup.'); }
+    };
+    r.readAsText(f); this.value='';
+  });
+
+  renderFoodSelect(); renderAll();
+})();
+</script>
+</body>
+</html>
