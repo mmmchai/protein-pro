@@ -59,6 +59,10 @@ label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
 .week .b span{position:absolute;left:6px;top:0;line-height:18px;font-size:12px}
 details summary{cursor:pointer;font-weight:600;min-height:32px}
 .hidden{display:none!important}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chips button{min-width:44px}
+label.chk{display:flex;gap:10px;align-items:center;color:var(--ink);font-size:15px;margin:14px 0 0}
+label.chk input{width:auto;min-height:0}
 </style>
 </head>
 <body>
@@ -81,19 +85,35 @@ details summary{cursor:pointer;font-weight:600;min-height:32px}
     <form id="form" autocomplete="off">
       <label for="foodSearch">Food <span id="foodCount"></span></label>
       <input id="foodSearch" type="search" placeholder="Search: bok choy, shake, rice…" autocomplete="off" autocapitalize="none" spellcheck="false">
-      <select id="food" required aria-label="Matching foods" style="margin-top:8px"></select>
+      <div id="autoBox">
+      <select id="food" aria-label="Matching foods" style="margin-top:8px"></select>
       <label for="cook">Cooking / state (match how you weighed it)</label>
-      <select id="cook" required></select>
+      <select id="cook"></select>
       <div class="row">
         <div>
-          <label for="grams">Weight (g)</label>
-          <input id="grams" type="number" inputmode="decimal" min="1" max="5000" step="any" required placeholder="e.g. 150">
+          <label for="amount">Amount (150, 1, ½, 1 1/2)</label>
+          <input id="amount" type="text" inputmode="decimal" autocomplete="off" placeholder="e.g. 150 or ½">
         </div>
         <div>
-          <label for="fat">Added oil/butter (tsp)</label>
-          <input id="fat" type="number" inputmode="decimal" min="0" max="20" step="0.5" placeholder="0">
+          <label for="unit">Unit</label>
+          <select id="unit"></select>
         </div>
       </div>
+      <div class="chips" id="chips" aria-label="Quick amounts">
+        <button type="button" class="small" data-q="¼">¼</button><button type="button" class="small" data-q="½">½</button><button type="button" class="small" data-q="1">1</button><button type="button" class="small" data-q="1½">1½</button><button type="button" class="small" data-q="2">2</button><button type="button" class="small" data-q="3">3</button>
+      </div>
+      <label for="fat">Added oil/butter (tsp)</label>
+      <input id="fat" type="number" inputmode="decimal" min="0" max="20" step="0.5" placeholder="0">
+      </div>
+      <div id="manualBox" class="hidden">
+        <label for="mName">Name</label>
+        <input id="mName" maxlength="60" placeholder="e.g. Latte, restaurant noodles">
+        <div class="row">
+          <div><label for="mKcal">Calories (kcal, total)</label><input id="mKcal" type="number" inputmode="decimal" min="0" max="5000" step="any"></div>
+          <div><label for="mProt">Protein (g, total)</label><input id="mProt" type="number" inputmode="decimal" min="0" max="500" step="any" placeholder="0"></div>
+        </div>
+      </div>
+      <label class="chk"><input type="checkbox" id="manual"> I know the calories, enter them myself</label>
       <div class="note" id="preview" style="margin:10px 0"></div>
       <div class="row">
         <button type="submit" class="primary" id="submitBtn">Add</button>
@@ -105,6 +125,8 @@ details summary{cursor:pointer;font-weight:600;min-height:32px}
       <form id="customForm" autocomplete="off">
         <label for="cName">Name</label>
         <input id="cName" required maxlength="60">
+        <label for="cServ">One serving weighs (g), optional</label>
+        <input id="cServ" type="number" inputmode="decimal" min="1" max="2000" step="any" placeholder="e.g. 60. Lets you enter servings.">
         <div class="row">
           <div><label for="cKcal">kcal per 100 g</label>
             <input id="cKcal" type="number" inputmode="decimal" min="0" max="900" step="any" required></div>
@@ -315,6 +337,110 @@ var FOODS = [
 ];
 var CATEGORIES = ['My foods','Meat & fish','Protein shakes & bars','Eggs, dairy & plant protein','Grains & starch','Legumes','Vegetables','Fruit','Fats & nuts','Sauces, sweets & drinks'];
 
+// Typical sizes in grams, as [label, grams, onlyFormIndex?]. Estimates; weigh in grams for accuracy.
+// A third value limits the unit to one cooking/state option (cooked vs dry weights differ a lot).
+var UNITS = {
+  'bread-wholewheat':[['slice, standard',35],['slice, thin',25],['slice, thick',50]],
+  'bread-white':[['slice, standard',35],['slice, thin',25],['slice, thick',50]],
+  'bagel':[['bagel, medium',95]],
+  'tortilla-flour':[['wrap, medium (8 in)',45],['wrap, large (10 in)',70]],
+  'rice-cake':[['cake',9]],
+  'egg':[['egg, large',50],['egg, medium',44],['egg, extra large',56]],
+  'egg-white':[['white, large',33]],
+  'apple':[['apple, medium',182],['apple, small',150],['apple, large',220]],
+  'banana':[['banana, medium (peeled)',118],['banana, small (peeled)',90],['banana, large (peeled)',136]],
+  'orange':[['orange, medium (peeled)',131],['orange, small (peeled)',96],['orange, large (peeled)',184]],
+  'pear':[['pear, medium',178],['pear, small',148],['pear, large',230]],
+  'peach':[['peach, medium',150]],
+  'plum':[['plum, medium',66]],
+  'kiwi':[['kiwi, medium (peeled)',69]],
+  'grapefruit':[['grapefruit, medium (peeled)',246]],
+  'mango':[['mango, medium (flesh)',250]],
+  'avocado':[['avocado, medium (flesh)',140]],
+  'strawberries':[['strawberry, medium',12],['cup, whole',152]],
+  'blueberries':[['cup',148]],
+  'grapes':[['grape',5],['cup',151]],
+  'cherries':[['cherry',8]],
+  'dates':[['date, medjool',24]],
+  'tomato':[['tomato, medium',123],['cherry tomato',17]],
+  'cucumber':[['cucumber, medium',200]],
+  'carrot':[['carrot, medium',61]],
+  'bell-pepper':[['pepper, medium',119]],
+  'potato':[['potato, medium',170],['potato, small',100],['potato, large',300]],
+  'sweet-potato':[['sweet potato, medium',130]],
+  'zucchini':[['zucchini, medium',196]],
+  'onion':[['onion, medium',110]],
+  'garlic':[['clove',3]],
+  'celery':[['stalk, medium',40]],
+  'lettuce':[['cup, shredded',47]],
+  'bok-choy':[['cup, shredded',70,0],['cup, cooked',170,1]],
+  'broccoli':[['cup, chopped',91,0],['cup, cooked',156,1]],
+  'spinach':[['cup',30,0],['cup, cooked',180,1]],
+  'almonds':[['handful',28]], 'walnuts':[['handful',28]], 'cashews':[['handful',28]], 'peanuts':[['handful',28]],
+  'peanut-butter':[['tbsp',16],['tsp',5]],
+  'olive-oil':[['tbsp',13.5],['tsp',4.5]],
+  'butter':[['tsp',4.7],['tbsp',14]],
+  'mayo':[['tbsp',14]],
+  'honey':[['tsp',7],['tbsp',21]],
+  'sugar':[['tsp',4]],
+  'soy-sauce':[['tbsp',16],['tsp',5]],
+  'ketchup':[['tbsp',17]],
+  'chia':[['tbsp',12]], 'flax':[['tbsp',10]], 'hummus':[['tbsp',15]],
+  'milk':[['cup (250 ml)',250]], 'soy-milk':[['cup (250 ml)',250]], 'almond-milk':[['cup (250 ml)',250]], 'oat-milk':[['cup (250 ml)',250]],
+  'orange-juice':[['glass (250 ml)',250]],
+  'cola':[['can (330 ml)',330]],
+  'coffee':[['mug (250 ml)',250]],
+  'greek-yogurt':[['pot (170 g)',170],['tbsp',18]],
+  'skyr':[['pot (150 g)',150]],
+  'cottage-cheese':[['cup',226],['tbsp',14]],
+  'cheddar':[['slice',20],['portion (30 g)',30]],
+  'parmesan':[['tbsp, grated',5]],
+  'whey':[['scoop',30]],
+  'protein-bar':[['bar',60]],
+  'shake-rtd':[['bottle (330 ml)',330],['bottle (500 ml)',500]],
+  'shake-water':[['shake',280]],
+  'shake-milk':[['shake',280]],
+  'dark-choc':[['square',10]],
+  'white-rice':[['cup, cooked',158,1]],
+  'brown-rice':[['cup, cooked',195,1]],
+  'oats':[['serving, dry (40 g)',40,0],['cup, cooked',234,1]],
+  'pasta':[['cup, cooked',140,1]],
+  'quinoa':[['cup, cooked',185,1]],
+  'lentils':[['cup, cooked',198,1]],
+  'chickpeas':[['cup, drained',164]],
+  'black-beans':[['cup, drained',172]],
+  'kidney-beans':[['cup, drained',177]],
+  'white-beans':[['cup, drained',179]]
+};
+function unitsFor(food, formIdx){
+  var list = food.custom ? (food.servingG>0 ? [['serving', food.servingG]] : []) : (UNITS[food.id] || []);
+  return list.filter(function(u){ return u[2]===undefined || u[2]===formIdx; }).map(function(u){ return {label:u[0], g:u[1]}; });
+}
+// "150", "0.5", "1/2", "1 1/2", "1½", "½" -> number; NaN if not a positive amount
+function parseQty(str){
+  var glyph = {'½':'1/2','¼':'1/4','¾':'3/4','⅓':'1/3','⅔':'2/3'};
+  str = String(str==null?'':str).replace(/[½¼¾⅓⅔]/g, function(c){ return ' '+glyph[c]; }).trim().replace(/,/g,'.').replace(/\s+/g,' ');
+  if (!str) return NaN;
+  var parts = str.split(' '), total = 0;
+  if (parts.length > 2) return NaN;
+  for (var i=0;i<parts.length;i++){
+    var f = parts[i].match(/^(\d+)\/(\d+)$/);
+    if (f){ if (Number(f[2])===0) return NaN; total += Number(f[1])/Number(f[2]); }
+    else if (/^(\d+\.?\d*|\.\d+)$/.test(parts[i])) total += Number(parts[i]);
+    else return NaN;
+  }
+  return total > 0 ? total : NaN;
+}
+function fmtQty(q){
+  var whole = Math.floor(q+1e-9), frac = q - whole, fr = [[0,''],[0.25,'¼'],[1/3,'⅓'],[0.5,'½'],[2/3,'⅔'],[0.75,'¾'],[1,'']];
+  for (var i=0;i<fr.length;i++){
+    if (Math.abs(frac-fr[i][0]) < 0.02){
+      if (i===fr.length-1) whole += 1;
+      return (whole>0 ? String(whole) : '') + fr[i][1] || '0';
+    }
+  }
+  return String(Math.round(q*10)/10);
+}
 function bmr(s){ return 10*s.kg + 6.25*s.cm - 5*s.age - 161; }   // Mifflin-St Jeor, female
 function targets(s){
   var tdee = bmr(s) * s.activity;
@@ -347,7 +473,7 @@ function rangeDays(entries, start, end){   // inclusive, at most 366 days, ISO d
   while (d<=end && n<366){ var t=totalsFor(entries,d); out.push({date:d,kcal:t.kcal,protein:t.protein,count:t.count}); d=addDays(d,1); n++; }
   return out;
 }
-if (typeof module !== 'undefined') module.exports = {rangeDays:rangeDays,CATEGORIES:CATEGORIES,bmr:bmr,targets:targets,entryNutrition:entryNutrition,totalsFor:totalsFor,addDays:addDays,lastDays:lastDays,FOODS:FOODS,fmtDate:fmtDate};
+if (typeof module !== 'undefined') module.exports = {UNITS:UNITS,unitsFor:unitsFor,parseQty:parseQty,fmtQty:fmtQty,rangeDays:rangeDays,CATEGORIES:CATEGORIES,bmr:bmr,targets:targets,entryNutrition:entryNutrition,totalsFor:totalsFor,addDays:addDays,lastDays:lastDays,FOODS:FOODS,fmtDate:fmtDate};
 </script>
 
 <script id="app">
@@ -410,7 +536,7 @@ if (typeof module !== 'undefined') module.exports = {rangeDays:rangeDays,CATEGOR
   // ---------- helpers ----------
   function esc(s){ return String(s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
   function allFoods(){
-    return FOODS.concat(state.customFoods.map(function(c){ return {cat:'My foods', id:c.id, name:c.name, forms:[['As is',c.kcal,c.protein]], custom:true}; }));
+    return FOODS.concat(state.customFoods.map(function(c){ return {cat:'My foods', id:c.id, name:c.name, forms:[['As is',c.kcal,c.protein]], custom:true, servingG:c.servingG}; }));
   }
   function findFood(id){ return allFoods().filter(function(f){ return f.id===id; })[0]; }
   function fmt(n,d){ return Number(n).toLocaleString(undefined,{maximumFractionDigits:d||0}); }
@@ -438,6 +564,33 @@ if (typeof module !== 'undefined') module.exports = {rangeDays:rangeDays,CATEGOR
     var f = findFood($('food').value);
     $('cook').innerHTML = f ? f.forms.map(function(x,i){ return '<option value="'+i+'">'+esc(x[0])+'</option>'; }).join('') : '';
     if (sel!=null) $('cook').value = sel;
+    renderUnits(false);
+  }
+  var autoFilled = false;
+  function renderUnits(keep){
+    var f = findFood($('food').value), us = f ? unitsFor(f, Number($('cook').value)||0) : [];
+    var prev = $('unit').value;
+    $('unit').innerHTML = us.map(function(u){ return '<option value="u:'+esc(u.label)+'">'+esc(u.label)+' (≈'+fmt(u.g,1)+' g)</option>'; }).join('')
+      + '<option value="g">grams (g)</option>';
+    var valid = Array.prototype.some.call($('unit').options, function(o){ return o.value===prev; });
+    if (keep && valid) $('unit').value = prev;      // otherwise default to the first typical size
+    syncAmount();
+  }
+  function currentUnit(){
+    var f = findFood($('food').value), v = $('unit').value; if (!f || v==='g' || !v) return null;
+    return unitsFor(f, Number($('cook').value)||0).filter(function(u){ return 'u:'+u.label===v; })[0] || null;
+  }
+  function syncAmount(){
+    var isG = $('unit').value==='g' || !$('unit').value;
+    $('chips').classList.toggle('hidden', isG);
+    if (!isG && $('amount').value.trim()===''){ $('amount').value='1'; autoFilled=true; }
+    if (isG && autoFilled && $('amount').value==='1') $('amount').value='';
+    if (isG) autoFilled=false;
+    preview();
+  }
+  function applyMode(){
+    var m = $('manual').checked;
+    $('autoBox').classList.toggle('hidden', m); $('manualBox').classList.toggle('hidden', !m);
     preview();
   }
   function currentPer100(){
@@ -445,11 +598,17 @@ if (typeof module !== 'undefined') module.exports = {rangeDays:rangeDays,CATEGOR
     var x = f.forms[Number($('cook').value)||0]; if(!x) return null;
     return {food:f, form:x[0], kcal:x[1], protein:x[2]};
   }
+  function currentGrams(){
+    var q = parseQty($('amount').value), u = currentUnit();
+    if (isNaN(q)) return NaN;
+    return u ? q*u.g : q;
+  }
   function preview(){
-    var p = currentPer100(), g = Number($('grams').value);
+    if ($('manual').checked){ $('preview').textContent = 'Totals as entered, no estimate applied.'; return; }
+    var p = currentPer100(), g = currentGrams(), u = currentUnit();
     if (!p){ $('preview').textContent=''; return; }
     var n = entryNutrition(p, g, $('fat').value);
-    $('preview').textContent = (g>0 ? fmt(n.kcal)+' kcal · '+fmt(n.protein,1)+' g protein' : 'Enter a weight')
+    $('preview').textContent = (g>0 ? (u?'≈'+fmt(g,1)+' g (typical size) · ':'')+fmt(n.kcal)+' kcal · '+fmt(n.protein,1)+' g protein' : 'Enter an amount')
       + '  (per 100 g: '+fmt(p.kcal)+' kcal, '+fmt(p.protein,1)+' g protein)';
   }
 
@@ -475,7 +634,7 @@ if (typeof module !== 'undefined') module.exports = {rangeDays:rangeDays,CATEGOR
         ? '<span class="note">Delete this entry?</span><button class="small danger" data-delok="'+esc(e.id)+'">Yes, delete</button><button class="small" data-delno="1">Keep</button>'
         : '<button class="small" data-edit="'+esc(e.id)+'">Edit</button><button class="small danger" data-del="'+esc(e.id)+'">Delete</button>';
       return '<div class="entry"><div class="main"><div class="name">'+esc(e.name)+'</div>'
-        + '<div class="meta">'+esc(e.form)+' · '+fmt(e.grams,1)+' g'+(e.fatTsp>0?' · +'+fmt(e.fatTsp,1)+' tsp oil':'')+'</div>'
+        + '<div class="meta">'+(e.manual ? 'Entered manually' : esc(e.form)+' · '+(e.unit ? fmtQty(e.qty)+' × '+esc(e.unit)+' (≈'+fmt(e.grams,1)+' g)' : fmt(e.grams,1)+' g')+(e.fatTsp>0?' · +'+fmt(e.fatTsp,1)+' tsp oil':''))+'</div>'
         + '<div class="actions">'+acts+'</div></div>'
         + '<div class="nums"><b>'+fmt(n.kcal)+'</b> kcal<br>'+fmt(n.protein,1)+' g P</div></div>';
     }).join('') : '<div class="note">Nothing logged for this day.</div>';
@@ -527,21 +686,41 @@ if (typeof module !== 'undefined') module.exports = {rangeDays:rangeDays,CATEGOR
 
   function resetForm(){
     editingId=null; $('form').reset(); $('formTitle').textContent='Add food'; $('submitBtn').textContent='Add';
-    $('cancelEdit').classList.add('hidden'); renderFoodSelect();
+    $('cancelEdit').classList.add('hidden'); $('manual').checked=false; autoFilled=false; applyMode(); renderFoodSelect();
   }
 
   $('food').addEventListener('change', function(){ renderCook(0); });
   $('foodSearch').addEventListener('input', function(){ renderFoodSelect(); });
-  $('foodSearch').addEventListener('keydown', function(ev){ if (ev.key==='Enter'){ ev.preventDefault(); $('grams').focus(); } });
-  ['cook','grams','fat'].forEach(function(id){ $(id).addEventListener('input', preview); });
+  $('foodSearch').addEventListener('keydown', function(ev){ if (ev.key==='Enter'){ ev.preventDefault(); $('amount').focus(); } });
+  ['cook','fat','mKcal','mProt'].forEach(function(id){ $(id).addEventListener('input', preview); });
+  $('cook').addEventListener('change', function(){ renderUnits(true); });
+  $('unit').addEventListener('change', syncAmount);
+  $('amount').addEventListener('input', function(){ autoFilled=false; preview(); });
+  $('manual').addEventListener('change', applyMode);
+  $('chips').addEventListener('click', function(ev){
+    var b = ev.target.closest('button[data-q]'); if(!b) return;
+    $('amount').value = b.dataset.q; autoFilled=false; preview();
+  });
 
   $('form').addEventListener('submit', function(ev){
     ev.preventDefault();
     if (!ready){ setMsg('Still loading your log. Try again in a moment.', true); return; }
-    var p = currentPer100(), grams = Number($('grams').value), fat = Number($('fat').value)||0;
-    if (!p || !(grams>0)) return;
-    var rec = {id: editingId || ('e'+Date.now()+Math.random().toString(36).slice(2,6)), date:viewDate,
-      name:p.food.name, form:p.form, kcal100:p.kcal, p100:p.protein, grams:grams, fatTsp:fat};
+    var rec = {id: editingId || ('e'+Date.now()+Math.random().toString(36).slice(2,6)), date:viewDate};
+    if ($('manual').checked){
+      var nm = $('mName').value.trim(), kc = Number($('mKcal').value), pr = Number($('mProt').value)||0;
+      if (!nm){ setMsg('Enter a name for this food.', true); return; }
+      if ($('mKcal').value==='' || !(kc>=0)){ setMsg('Enter the calories.', true); return; }
+      Object.assign(rec, {name:nm, form:'Manual entry', manual:true, kcal100:kc, p100:pr, grams:100, fatTsp:0});
+    } else {
+      var p = currentPer100(), q = parseQty($('amount').value), u = currentUnit(), fat = Number($('fat').value)||0;
+      if (!p){ setMsg('Pick a food first.', true); return; }
+      if (isNaN(q)){ setMsg('Enter an amount like 150, 1 or ½.', true); return; }
+      var grams = u ? q*u.g : q;
+      if (!(grams>0) || grams>5000){ setMsg('That amount looks wrong. It must be between 0 and 5,000 g.', true); return; }
+      Object.assign(rec, {name:p.food.name, form:p.form, kcal100:p.kcal, p100:p.protein, grams:grams, fatTsp:fat});
+      if (u){ rec.qty = q; rec.unit = u.label; }
+    }
+    setMsg('');
     if (editingId){
       var i = state.entries.findIndex(function(e){ return e.id===editingId; });
       if (i>=0){ rec.date = state.entries[i].date; state.entries[i]=rec; }
@@ -564,10 +743,18 @@ if (typeof module !== 'undefined') module.exports = {rangeDays:rangeDays,CATEGOR
       renderAll();
     } else if (b.dataset.edit){
       var en = state.entries.filter(function(x){ return x.id===b.dataset.edit; })[0]; if(!en) return;
-      var food = allFoods().filter(function(f){ return f.name===en.name; })[0];
-      editingId = en.id;
-      if (food){ renderFoodSelect(food.id); var fi = food.forms.findIndex(function(x){ return x[0]===en.form; }); $('cook').value = String(fi<0?0:fi); }
-      $('grams').value = en.grams; $('fat').value = en.fatTsp||''; preview();
+      editingId = en.id; autoFilled = false;
+      if (en.manual){
+        $('manual').checked = true; $('mName').value = en.name; $('mKcal').value = en.kcal100; $('mProt').value = en.p100||''; applyMode();
+      } else {
+        $('manual').checked = false; applyMode();
+        var food = allFoods().filter(function(f){ return f.name===en.name; })[0];
+        if (food){ renderFoodSelect(food.id); var fi = food.forms.findIndex(function(x){ return x[0]===en.form; }); $('cook').value = String(fi<0?0:fi); renderUnits(false); }
+        var uopt = en.unit ? Array.prototype.filter.call($('unit').options, function(o){ return o.value==='u:'+en.unit; })[0] : null;
+        if (uopt){ $('unit').value = uopt.value; $('amount').value = fmtQty(en.qty); }
+        else { $('unit').value = 'g'; $('amount').value = en.grams; }
+        $('fat').value = en.fatTsp||''; syncAmount();
+      }
       $('formTitle').textContent='Edit entry'; $('submitBtn').textContent='Save changes'; $('cancelEdit').classList.remove('hidden');
       $('form').scrollIntoView({behavior:'smooth', block:'start'});
     }
@@ -579,7 +766,7 @@ if (typeof module !== 'undefined') module.exports = {rangeDays:rangeDays,CATEGOR
     var name = $('cName').value.trim(), k = Number($('cKcal').value), p = Number($('cProt').value);
     if (!name || !(k>=0) || !(p>=0)) return;
     var id = 'c'+Date.now();
-    state.customFoods.push({id:id, name:name, kcal:k, protein:p}); persist({settings:true});
+    var sv = Number($('cServ').value); state.customFoods.push({id:id, name:name, kcal:k, protein:p, servingG: sv>0 ? sv : undefined}); persist({settings:true});
     $('customForm').reset(); renderFoodSelect(id);
     setMsg('Saved "'+name+'". It is now under "My foods" in the food list.');
   });

@@ -51,4 +51,32 @@ assert.strictEqual(r.length, 4); assert.strictEqual(r[1].kcal, 100); assert.stri
 assert.strictEqual(c.rangeDays(old, '2020-01-01', '2026-07-03').length, 366);
 assert.strictEqual(c.rangeDays(old, '2026-07-03', '2026-07-01').length, 0);
 
+// quantity parsing and display
+const q = c.parseQty;
+assert.strictEqual(q('1'), 1); assert.strictEqual(q('0.5'), 0.5); assert.strictEqual(q('1/2'), 0.5);
+assert.strictEqual(q('1 1/2'), 1.5); assert.strictEqual(q('½'), 0.5); assert.strictEqual(q('1½'), 1.5);
+assert.strictEqual(q(' 2,5 '), 2.5); assert.strictEqual(q('150'), 150);
+['', 'abc', '0', '-1', '1/0', '1/2/3', '1 2 3', '1..2'].forEach(x => assert.ok(Number.isNaN(q(x)), 'should reject: ' + x));
+assert.strictEqual(c.fmtQty(0.5), '½'); assert.strictEqual(c.fmtQty(1.5), '1½'); assert.strictEqual(c.fmtQty(2), '2');
+assert.strictEqual(c.fmtQty(0.25), '¼'); assert.strictEqual(c.fmtQty(1/3), '⅓'); assert.strictEqual(c.fmtQty(0.7), '0.7');
+
+// units: every key is a real food, form restrictions are valid, sizes are positive
+Object.keys(c.UNITS).forEach(id => {
+  const f = c.FOODS.find(x => x.id === id); assert.ok(f, 'unit for unknown food ' + id);
+  c.UNITS[id].forEach(([label, g, form]) => { assert.ok(label && g > 0, id + ' ' + label);
+    if (form !== undefined) assert.ok(f.forms[form], id + ' form ' + form); });
+});
+const bread = c.FOODS.find(f => f.id === 'bread-wholewheat');
+assert.strictEqual(c.unitsFor(bread, 0)[0].label, 'slice, standard');
+// 1 slice of wholewheat bread ~ 35 g -> 247 kcal/100 g -> about 86 kcal
+assert.ok(Math.abs(c.entryNutrition({kcal: 247, protein: 13}, 1 * 35, 0).kcal - 86.45) < 0.01);
+// half a medium orange (131 g) ~ 62 kcal at 47/100 g -> about 31 kcal
+assert.ok(Math.abs(c.entryNutrition({kcal: 47, protein: 0.9}, 0.5 * 131, 0).kcal - 30.8) < 0.1);
+// cooked-only units hide when the dry option is selected
+const whiteRice = c.FOODS.find(f => f.id === 'white-rice');
+assert.strictEqual(c.unitsFor(whiteRice, 0).length, 0); assert.strictEqual(c.unitsFor(whiteRice, 1).length, 1);
+// custom food serving size
+assert.strictEqual(c.unitsFor({custom: true, servingG: 60}, 0)[0].g, 60);
+assert.strictEqual(c.unitsFor({custom: true}, 0).length, 0);
+
 console.log('all tests passed,', c.FOODS.length, 'foods');
