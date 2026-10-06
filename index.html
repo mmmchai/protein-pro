@@ -289,8 +289,8 @@ var FOODS = [
   {cat:'Vegetables', id:'carrot', name:'Carrot', forms:[['Raw',41,0.9],['Boiled',35,0.8]]},
   {cat:'Vegetables', id:'tomato', name:'Tomato', forms:[['Raw',18,0.9]]},
   {cat:'Vegetables', id:'cucumber', name:'Cucumber', forms:[['Raw',15,0.7]]},
-  {cat:'Vegetables', id:'bell-pepper', name:'Bell pepper', forms:[['Raw',31,1]]},
-  {cat:'Vegetables', id:'zucchini', name:'Zucchini', forms:[['Raw',17,1.2],['Cooked (oil not included)',15,1.1]]},
+  {cat:'Vegetables', id:'bell-pepper', name:'Bell pepper', aka:'capsicum', forms:[['Raw',31,1]]},
+  {cat:'Vegetables', id:'zucchini', name:'Zucchini', aka:'courgette', forms:[['Raw',17,1.2],['Cooked (oil not included)',15,1.1]]},
   {cat:'Vegetables', id:'mushrooms', name:'Mushrooms', forms:[['Raw',22,3.1],['Cooked (oil not included)',28,2.2]]},
   {cat:'Fats & nuts', id:'avocado', name:'Avocado', forms:[['Raw',160,2]]},
   {cat:'Fats & nuts', id:'almonds', name:'Almonds', forms:[['As is',579,21]]},
@@ -331,15 +331,21 @@ var FOODS = [
   {cat:'Fruit', id:'grapefruit', name:'Grapefruit', forms:[['Raw',42,0.8]]},
   {cat:'Fruit', id:'papaya', name:'Papaya', forms:[['Raw',43,0.5]]},
   {cat:'Fruit', id:'pomegranate', name:'Pomegranate seeds', forms:[['Raw',83,1.7]]},
-  {cat:'Fruit', id:'cantaloupe', name:'Cantaloupe / rockmelon', forms:[['Raw',34,0.8]]},
+  {cat:'Fruit', id:'cantaloupe', name:'Cantaloupe / rockmelon', aka:'rockmelon', forms:[['Raw',34,0.8]]},
   {cat:'Fruit', id:'dragon-fruit', name:'Dragon fruit', forms:[['Raw',60,1.2]]},
   {cat:'Fruit', id:'dates', name:'Dates (dried)', forms:[['As is',282,2.5]]},
   {cat:'Fruit', id:'raisins', name:'Raisins', forms:[['As is',299,3.1]]},
-  {cat:'Vegetables', id:'bok-choy', name:'Bok choy (pak choi)', forms:[['Raw',13,1.5],['Steamed / boiled',12,1.6]]},
-  {cat:'Vegetables', id:'napa-cabbage', name:'Napa / Chinese cabbage', forms:[['Raw',12,1.2],['Cooked',14,1.1]]},
+  {cat:'Vegetables', id:'bok-choy', name:'Bok choy (pak choi)', aka:'baby bok choy shanghai bok choy pak choi pak choy', forms:[['Raw',13,1.5],['Steamed / boiled',12,1.6]]},
+  {cat:'Vegetables', id:'napa-cabbage', name:'Napa / Chinese cabbage', aka:'wombok wong bok', forms:[['Raw',12,1.2],['Cooked',14,1.1]]},
   {cat:'Vegetables', id:'cabbage', name:'Cabbage', forms:[['Raw',25,1.3],['Boiled',23,1.3]]},
   {cat:'Vegetables', id:'cauliflower', name:'Cauliflower', forms:[['Raw',25,1.9],['Steamed / boiled',23,1.8]]},
   {cat:'Vegetables', id:'kale', name:'Kale', forms:[['Raw',35,2.9],['Cooked',28,1.9]]},
+  {cat:'Vegetables', id:'gai-lan', name:'Gai lan (Chinese broccoli)', aka:'kai lan kailan jie lan', forms:[['Raw',22,1.2],['Steamed / boiled',20,1.2]]},
+  {cat:'Vegetables', id:'yu-choy', name:'Yu choy / choy sum', aka:'yow choy you choy yau choy flowering cabbage choisum', forms:[['Raw',13,1.5],['Steamed / boiled',14,1.6]]},
+  {cat:'Vegetables', id:'ong-choy', name:'Ong choy (water spinach)', aka:'kangkong kang kong morning glory tung choy', forms:[['Raw',19,2.6],['Cooked (oil not included)',20,2.0]]},
+  {cat:'Vegetables', id:'yin-choy', name:'Yin choy (Chinese spinach / amaranth)', aka:'een choy amaranth', forms:[['Raw',23,2.5],['Cooked (oil not included)',21,2.1]]},
+  {cat:'Vegetables', id:'gai-choy', name:'Gai choy (Chinese mustard greens)', aka:'mustard greens kai choy', forms:[['Raw',27,2.9],['Cooked',15,1.6]]},
+  {cat:'Vegetables', id:'gau-choy', name:'Gau choy (Chinese chives)', aka:'garlic chives jiu cai nira', forms:[['Raw',30,3.3]]},
   {cat:'Vegetables', id:'lettuce', name:'Lettuce (romaine / mixed leaves)', forms:[['Raw',17,1.2]]},
   {cat:'Vegetables', id:'asparagus', name:'Asparagus', forms:[['Raw',20,2.2],['Cooked',22,2.4]]},
   {cat:'Vegetables', id:'green-beans', name:'Green beans', forms:[['Raw',31,1.8],['Cooked',35,1.9]]},
@@ -348,7 +354,7 @@ var FOODS = [
   {cat:'Vegetables', id:'sweetcorn', name:'Sweetcorn', forms:[['Cooked',96,3.4]]},
   {cat:'Vegetables', id:'brussels-sprouts', name:'Brussels sprouts', forms:[['Raw',43,3.4],['Boiled / roasted',36,2.6]]},
   {cat:'Vegetables', id:'beetroot', name:'Beetroot', forms:[['Raw',43,1.6],['Boiled',44,1.7]]},
-  {cat:'Vegetables', id:'eggplant', name:'Eggplant / aubergine', forms:[['Raw',25,1],['Cooked (oil not included)',35,0.8]]},
+  {cat:'Vegetables', id:'eggplant', name:'Eggplant / aubergine', aka:'brinjal', forms:[['Raw',25,1],['Cooked (oil not included)',35,0.8]]},
   {cat:'Vegetables', id:'pumpkin', name:'Pumpkin / squash', forms:[['Raw',26,1],['Cooked',20,0.7]]},
   {cat:'Vegetables', id:'onion', name:'Onion', forms:[['Raw',40,1.1],['Cooked (oil not included)',44,1.4]]},
   {cat:'Vegetables', id:'garlic', name:'Garlic', forms:[['Raw',149,6.4]]},
@@ -620,7 +626,7 @@ if (typeof module !== 'undefined') module.exports = {MEALS:MEALS,mealForHour:mea
 
   function renderFoodSelect(selectedId){
     var words = $('foodSearch').value.trim().toLowerCase().split(/\s+/).filter(Boolean), all = allFoods();
-    var foods = all.filter(function(f){ var h=(f.name+' '+f.cat).toLowerCase(); return words.every(function(w){ return h.indexOf(w)>-1; }); });
+    var foods = all.filter(function(f){ var h=(f.name+' '+f.cat+' '+(f.aka||'')).toLowerCase(); return words.every(function(w){ return h.indexOf(w)>-1; }); });
     if (selectedId && !foods.some(function(f){ return f.id===selectedId; })){ $('foodSearch').value=''; return renderFoodSelect(selectedId); }
     var prev = selectedId || $('food').value;
     $('foodCount').textContent = '(' + (words.length ? foods.length+' of '+all.length : all.length) + ' foods)';

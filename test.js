@@ -96,4 +96,11 @@ assert.strictEqual(c.frequentFoods(hist, '2026-10-06', 60, 1, []).length, 1);
 assert.notStrictEqual(c.entryKey(mk('d', 'Egg', 100)), c.entryKey(mk('d', 'Egg', 100, { fatTsp: 1 })));
 assert.notStrictEqual(c.entryKey(mk('d', 'Latte', 100, { manual: true, kcal100: 180 })), c.entryKey(mk('d', 'Latte', 100, { manual: true, kcal100: 200 })));
 
+// Chinese greens exist and aliases are searchable
+['gai-lan', 'yu-choy', 'ong-choy', 'yin-choy', 'gai-choy', 'gau-choy'].forEach(id => assert.ok(c.FOODS.find(f => f.id === id), id));
+const hay = f => (f.name + ' ' + f.cat + ' ' + (f.aka || '')).toLowerCase();
+const find = q => c.FOODS.filter(f => q.toLowerCase().split(/\s+/).every(w => hay(f).includes(w))).map(f => f.id);
+assert.deepStrictEqual(find('kai lan'), ['gai-lan']); assert.deepStrictEqual(find('choy sum'), ['yu-choy']);
+assert.ok(find('kangkong').includes('ong-choy')); assert.ok(find('baby bok').includes('bok-choy'));
+
 console.log('all tests passed,', c.FOODS.length, 'foods');
