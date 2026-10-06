@@ -8,12 +8,14 @@
 <style>
 :root{
   --bg:#f6f5f2; --card:#fff; --ink:#1d2421; --muted:#667069; --line:#e3e1db;
-  --kcal:#d97a2b; --prot:#2f7d5b; --warn:#b3261e; --accent:#2f7d5b; --track:#ebe9e3;
+  --kcal:#d97a2b; --prot:#2f7d5b; --warn:#b3261e; --accent:#2f7d5b; --track:#ebe9e3; --on-accent:#fff;
 }
 @media (prefers-color-scheme: dark){
-  :root{ --bg:#141815; --card:#1d2420; --ink:#ecefec; --muted:#9aa59d; --line:#2c352f;
-    --kcal:#f0a066; --prot:#6cc79b; --warn:#ff8a80; --accent:#6cc79b; --track:#2a332d; }
+  :root:not([data-theme="light"]){ --bg:#141815; --card:#1d2420; --ink:#ecefec; --muted:#9aa59d; --line:#2c352f;
+    --kcal:#f0a066; --prot:#6cc79b; --warn:#ff8a80; --accent:#6cc79b; --track:#2a332d; --on-accent:#0d1410; color-scheme:dark; }
 }
+:root[data-theme="dark"]{ --bg:#141815; --card:#1d2420; --ink:#ecefec; --muted:#9aa59d; --line:#2c352f;
+  --kcal:#f0a066; --prot:#6cc79b; --warn:#ff8a80; --accent:#6cc79b; --track:#2a332d; --on-accent:#0d1410; color-scheme:dark; }
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
   padding:0 16px calc(32px + env(safe-area-inset-bottom))}
@@ -26,8 +28,7 @@ h2{font-size:15px;margin:0 0 10px;text-transform:uppercase;letter-spacing:.04em;
 button,input,select{font:inherit;color:inherit}
 input,select{width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--bg);min-height:44px}
 button{min-height:44px;padding:0 14px;border-radius:10px;border:1px solid var(--line);background:var(--card);cursor:pointer}
-button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
-@media (prefers-color-scheme: dark){ button.primary{color:#0d1410} }
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:600}
 button.danger{color:var(--warn)}
 button.small{min-height:36px;padding:0 10px;font-size:14px}
 label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
@@ -53,13 +54,14 @@ label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
 .week .b i{position:absolute;left:0;top:0;bottom:0}
 .week .b span{position:absolute;left:6px;top:0;line-height:18px;font-size:12px}
 details summary{cursor:pointer;font-weight:600;min-height:32px}
-.hidden{display:none}
+.hidden{display:none!important}
 </style>
 </head>
 <body>
 <main>
   <h1>Protein Pro</h1>
   <div class="note">Calorie &amp; protein tracker. Numbers are estimates (±10–15%).</div>
+  <div class="note" id="msg" role="status"></div>
 
   <div class="datebar">
     <button id="prev" aria-label="Previous day">‹</button>
@@ -140,12 +142,13 @@ details summary{cursor:pointer;font-weight:600;min-height:32px}
       <label for="sProt">Protein (g per kg body weight)</label>
       <input id="sProt" type="number" inputmode="decimal" step="0.1" min="1.2" max="3">
       <div class="note" id="targetInfo" style="margin-top:10px"></div>
+      <div id="importBox" class="warnbox hidden"></div>
       <div class="row" style="margin-top:12px">
         <button id="export" type="button">Export backup</button>
         <button id="import" type="button">Import backup</button>
       </div>
       <input type="file" id="importFile" accept="application/json" class="hidden">
-      <div class="note" style="margin-top:10px">Data is stored only in this browser. Export a backup now and then, especially before clearing browser data.
+      <div class="note" style="margin-top:10px">Your log is saved to your account when opened as a claude.ai page, otherwise only in this browser. Backups are optional.
       General guidance, not medical advice.</div>
     </details>
   </section>
@@ -249,19 +252,59 @@ if (typeof module !== 'undefined') module.exports = {bmr:bmr,targets:targets,ent
   if (typeof document === 'undefined') return;
   var KEY = 'proteinpro.v1';
   var DEFAULTS = {kg:52, cm:160, age:33, activity:1.45, deficitPct:15, proteinPerKg:1.9};
-  var state = load();
+  var state = {settings:Object.assign({}, DEFAULTS), customFoods:[], entries:[]};
+  var store = null;          // {db, base} when saving to the viewer's account, else null (browser storage)
+  var ready = false, knownMonths = {};
   var viewDate = fmtDate(new Date());
-  var editingId = null;
+  var editingId = null, pendingDel = null, pendingImport = null;
   var $ = function(id){ return document.getElementById(id); };
 
-  function load(){
+  function setMsg(t, bad){ $('msg').textContent = t||''; $('msg').className = 'note' + (bad?' over':''); }
+
+  // ---------- persistence ----------
+  function localLoad(){
     try{
       var s = JSON.parse(localStorage.getItem(KEY));
-      if (s && s.entries) return {settings:Object.assign({}, DEFAULTS, s.settings), customFoods:s.customFoods||[], entries:s.entries};
+      if (s && Array.isArray(s.entries)) state = {settings:Object.assign({}, DEFAULTS, s.settings), customFoods:s.customFoods||[], entries:s.entries};
     }catch(e){}
-    return {settings:Object.assign({}, DEFAULTS), customFoods:[], entries:[]};
   }
-  function save(){ try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){ alert('Could not save: browser storage is unavailable.'); } }
+  function localSave(){ try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){ setMsg('Could not save: browser storage is unavailable.', true); } }
+  async function initStore(){
+    try{
+      if (!window.claude || !window.claude.use) return null;
+      var db = await window.claude.use('db'), user = await window.claude.use('user');
+      if (!db || !user) return null;
+      var id = await user.id(); if (!id) return null;
+      return {db:db, base:'data/users/'+id};
+    }catch(e){ return null; }
+  }
+  async function dbLoad(){
+    var snap = await store.db.collection(store.base).get(), entries = [];
+    snap.docs.forEach(function(d){
+      var v = d.data() || {};
+      if (d.id==='settings') state.settings = Object.assign({}, DEFAULTS, v.settings), state.customFoods = Array.isArray(v.customFoods)?v.customFoods:[];
+      else if (/^m-\d{4}-\d{2}$/.test(d.id) && Array.isArray(v.entries)){ knownMonths[d.id.slice(2)] = 1; entries = entries.concat(v.entries); }
+    });
+    state.entries = entries;
+  }
+  var queue = Promise.resolve();
+  // what: {settings:bool, months:['YYYY-MM',...]}
+  function persist(what){
+    if (!store){ localSave(); return; }
+    var ops = [];
+    if (what.settings) ops.push(function(){ return store.db.doc(store.base+'/settings').set({settings:state.settings, customFoods:state.customFoods}); });
+    (what.months||[]).forEach(function(m){
+      knownMonths[m] = 1;
+      ops.push(function(){ return store.db.doc(store.base+'/m-'+m).set({entries:state.entries.filter(function(e){ return e.date.slice(0,7)===m; })}); });
+    });
+    queue = queue.then(function(){ return Promise.all(ops.map(function(f){ return f(); })); })
+      .then(function(){ setMsg(''); })
+      .catch(function(e){ setMsg('Could not save: '+((e&&e.message)||'unknown error')+'. Reload before adding more.', true); });
+  }
+  var settingsTimer = null;
+  function persistSettingsSoon(){ clearTimeout(settingsTimer); settingsTimer = setTimeout(function(){ persist({settings:true}); }, 600); }
+
+  // ---------- helpers ----------
   function esc(s){ return String(s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
   function allFoods(){
     return FOODS.concat(state.customFoods.map(function(c){ return {cat:'My foods', id:c.id, name:c.name, forms:[['As is',c.kcal,c.protein]], custom:true}; }));
@@ -315,9 +358,12 @@ if (typeof module !== 'undefined') module.exports = {bmr:bmr,targets:targets,ent
     var list = state.entries.filter(function(e){ return e.date===viewDate; });
     $('entries').innerHTML = list.length ? list.map(function(e){
       var n = entryTotals(e);
+      var acts = pendingDel===e.id
+        ? '<span class="note">Delete this entry?</span><button class="small danger" data-delok="'+esc(e.id)+'">Yes, delete</button><button class="small" data-delno="1">Keep</button>'
+        : '<button class="small" data-edit="'+esc(e.id)+'">Edit</button><button class="small danger" data-del="'+esc(e.id)+'">Delete</button>';
       return '<div class="entry"><div class="main"><div class="name">'+esc(e.name)+'</div>'
         + '<div class="meta">'+esc(e.form)+' · '+fmt(e.grams,1)+' g'+(e.fatTsp>0?' · +'+fmt(e.fatTsp,1)+' tsp oil':'')+'</div>'
-        + '<div class="actions"><button class="small" data-edit="'+esc(e.id)+'">Edit</button><button class="small danger" data-del="'+esc(e.id)+'">Delete</button></div></div>'
+        + '<div class="actions">'+acts+'</div></div>'
         + '<div class="nums"><b>'+fmt(n.kcal)+'</b> kcal<br>'+fmt(n.protein,1)+' g P</div></div>';
     }).join('') : '<div class="note">Nothing logged for this day.</div>';
   }
@@ -334,12 +380,16 @@ if (typeof module !== 'undefined') module.exports = {bmr:bmr,targets:targets,ent
       + fmt(logged.reduce(function(a,d){return a+d.kcal;},0)/logged.length)+' kcal, '
       + fmt(logged.reduce(function(a,d){return a+d.protein;},0)/logged.length)+' g protein. Judge progress by the weekly trend, not one day.' : '';
   }
+  function targetText(){
+    var t = targets(state.settings);
+    return 'BMR ≈ '+t.bmr+' kcal · maintenance ≈ '+t.tdee+' kcal · target '+t.kcal+' kcal & '+t.protein+' g protein'
+      + (t.kcal===CALORIE_FLOOR ? ' (held at the '+CALORIE_FLOOR+' kcal floor)' : '');
+  }
   function renderSettings(){
-    var s = state.settings, t = targets(s);
+    var s = state.settings;
     $('sKg').value=s.kg; $('sCm').value=s.cm; $('sAge').value=s.age; $('sDef').value=s.deficitPct;
     $('sAct').value=String(s.activity); $('sProt').value=s.proteinPerKg;
-    $('targetInfo').textContent = 'BMR ≈ '+t.bmr+' kcal · maintenance ≈ '+t.tdee+' kcal · target '+t.kcal+' kcal & '+t.protein+' g protein'
-      + (t.kcal===CALORIE_FLOOR ? ' (held at the '+CALORIE_FLOOR+' kcal floor)' : '');
+    $('targetInfo').textContent = targetText();
   }
   function renderAll(){
     $('date').value = viewDate;
@@ -356,6 +406,7 @@ if (typeof module !== 'undefined') module.exports = {bmr:bmr,targets:targets,ent
 
   $('form').addEventListener('submit', function(ev){
     ev.preventDefault();
+    if (!ready){ setMsg('Still loading your log. Try again in a moment.', true); return; }
     var p = currentPer100(), grams = Number($('grams').value), fat = Number($('fat').value)||0;
     if (!p || !(grams>0)) return;
     var rec = {id: editingId || ('e'+Date.now()+Math.random().toString(36).slice(2,6)), date:viewDate,
@@ -364,17 +415,22 @@ if (typeof module !== 'undefined') module.exports = {bmr:bmr,targets:targets,ent
       var i = state.entries.findIndex(function(e){ return e.id===editingId; });
       if (i>=0){ rec.date = state.entries[i].date; state.entries[i]=rec; }
     } else state.entries.push(rec);
-    save(); resetForm(); renderAll();
+    persist({months:[rec.date.slice(0,7)]}); resetForm(); renderAll();
   });
   $('cancelEdit').addEventListener('click', resetForm);
 
   $('entries').addEventListener('click', function(ev){
     var b = ev.target.closest('button'); if(!b) return;
-    if (b.dataset.del){
-      var e = state.entries.filter(function(x){ return x.id===b.dataset.del; })[0];
-      if (e && confirm('Delete "'+e.name+'" ('+e.grams+' g)?')){
-        state.entries = state.entries.filter(function(x){ return x.id!==e.id; }); save(); if(editingId===e.id) resetForm(); renderAll();
+    if (b.dataset.del){ pendingDel = b.dataset.del; renderEntries(); }
+    else if (b.dataset.delno){ pendingDel = null; renderEntries(); }
+    else if (b.dataset.delok){
+      var e = state.entries.filter(function(x){ return x.id===b.dataset.delok; })[0];
+      pendingDel = null;
+      if (e){
+        state.entries = state.entries.filter(function(x){ return x.id!==e.id; });
+        persist({months:[e.date.slice(0,7)]}); if(editingId===e.id) resetForm();
       }
+      renderAll();
     } else if (b.dataset.edit){
       var en = state.entries.filter(function(x){ return x.id===b.dataset.edit; })[0]; if(!en) return;
       var food = allFoods().filter(function(f){ return f.name===en.name; })[0];
@@ -388,52 +444,77 @@ if (typeof module !== 'undefined') module.exports = {bmr:bmr,targets:targets,ent
 
   $('customForm').addEventListener('submit', function(ev){
     ev.preventDefault();
+    if (!ready) return;
     var name = $('cName').value.trim(), k = Number($('cKcal').value), p = Number($('cProt').value);
     if (!name || !(k>=0) || !(p>=0)) return;
     var id = 'c'+Date.now();
-    state.customFoods.push({id:id, name:name, kcal:k, protein:p}); save();
+    state.customFoods.push({id:id, name:name, kcal:k, protein:p}); persist({settings:true});
     $('customForm').reset(); renderFoodSelect(id);
-    alert('Saved. It now appears under "My foods" in the food list.');
+    setMsg('Saved "'+name+'". It is now under "My foods" in the food list.');
   });
 
-  function shift(n){ viewDate = addDays(viewDate, n); renderAll(); }
+  function shift(n){ viewDate = addDays(viewDate, n); pendingDel=null; renderAll(); }
   $('prev').onclick=function(){ shift(-1); }; $('next').onclick=function(){ shift(1); };
-  $('today').onclick=function(){ viewDate=fmtDate(new Date()); renderAll(); };
-  $('date').addEventListener('change', function(){ if($('date').value){ viewDate=$('date').value; renderAll(); } });
+  $('today').onclick=function(){ viewDate=fmtDate(new Date()); pendingDel=null; renderAll(); };
+  $('date').addEventListener('change', function(){ if($('date').value){ viewDate=$('date').value; pendingDel=null; renderAll(); } });
 
   function readSettings(){
     var s = {kg:Number($('sKg').value), cm:Number($('sCm').value), age:Number($('sAge').value), deficitPct:Number($('sDef').value),
       activity:Number($('sAct').value), proteinPerKg:Number($('sProt').value)};
     if (!(s.kg>=30&&s.cm>=120&&s.age>=15&&s.deficitPct>=0&&s.deficitPct<=25&&s.proteinPerKg>=1.2)) return;
-    state.settings = s; save(); renderSummary(); renderWeek();
-    var t = targets(s);
-    $('targetInfo').textContent = 'BMR ≈ '+t.bmr+' kcal · maintenance ≈ '+t.tdee+' kcal · target '+t.kcal+' kcal & '+t.protein+' g protein'
-      + (t.kcal===CALORIE_FLOOR ? ' (held at the '+CALORIE_FLOOR+' kcal floor)' : '');
+    state.settings = s; persistSettingsSoon(); renderSummary(); renderWeek();
+    $('targetInfo').textContent = targetText();
   }
   ['sKg','sCm','sAge','sDef','sAct','sProt'].forEach(function(id){ $(id).addEventListener('input', readSettings); });
 
-  $('export').onclick=function(){
-    var blob = new Blob([JSON.stringify(state,null,2)], {type:'application/json'});
-    var a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='protein-pro-backup-'+fmtDate(new Date())+'.json';
+  $('export').onclick=async function(){
+    var json = JSON.stringify(state,null,2), name = 'protein-pro-backup-'+fmtDate(new Date())+'.json';
+    try{
+      var dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
+      if (dl){ await dl.save({filename:name, data:json}); return; }
+    }catch(e){ if (e && e.code && e.code!=='cancelled') setMsg('Could not save the backup file.', true); return; }
+    var a = document.createElement('a'); a.href=URL.createObjectURL(new Blob([json],{type:'application/json'})); a.download=name;
     document.body.appendChild(a); a.click(); a.remove(); setTimeout(function(){ URL.revokeObjectURL(a.href); },1000);
   };
   $('import').onclick=function(){ $('importFile').click(); };
+  function showImport(){
+    var box = $('importBox');
+    if (!pendingImport){ box.classList.add('hidden'); box.innerHTML=''; return; }
+    box.classList.remove('hidden');
+    box.innerHTML = 'Replace all current data with '+pendingImport.entries.length+' entries from this backup? '
+      + '<div class="actions"><button type="button" class="small danger" id="impYes">Replace</button><button type="button" class="small" id="impNo">Cancel</button></div>';
+    $('impYes').onclick = function(){
+      var d = pendingImport; pendingImport = null; showImport();
+      var oldMonths = Object.keys(knownMonths);
+      state = {settings:Object.assign({}, DEFAULTS, d.settings), customFoods:Array.isArray(d.customFoods)?d.customFoods:[], entries:d.entries};
+      var months = {}; oldMonths.forEach(function(m){ months[m]=1; });
+      state.entries.forEach(function(e){ if(e && typeof e.date==='string') months[e.date.slice(0,7)]=1; });
+      persist({settings:true, months:Object.keys(months)}); renderFoodSelect(); renderAll(); setMsg('Backup imported.');
+    };
+    $('impNo').onclick = function(){ pendingImport = null; showImport(); };
+  }
   $('importFile').addEventListener('change', function(){
     var f = this.files[0]; if(!f) return;
     var r = new FileReader();
     r.onload = function(){
       try{
         var d = JSON.parse(r.result);
-        if (!d || !Array.isArray(d.entries)) throw new Error('bad file');
-        if (!confirm('Replace all current data with this backup?')) return;
-        state = {settings:Object.assign({}, DEFAULTS, d.settings), customFoods:Array.isArray(d.customFoods)?d.customFoods:[], entries:d.entries};
-        save(); renderFoodSelect(); renderAll();
-      }catch(e){ alert('That file is not a valid backup.'); }
+        if (!d || !Array.isArray(d.entries) || d.entries.some(function(e){ return !e || typeof e.date!=='string'; })) throw new Error('bad file');
+        pendingImport = d; showImport();
+      }catch(e){ setMsg('That file is not a valid backup.', true); }
     };
     r.readAsText(f); this.value='';
   });
 
-  renderFoodSelect(); renderAll();
+  // ---------- start ----------
+  renderFoodSelect(); renderAll(); setMsg('Loading your log…');
+  initStore().then(async function(s){
+    store = s;
+    try{ if (store) await dbLoad(); else localLoad(); }
+    catch(e){ setMsg('Could not load your saved log: '+((e&&e.message)||'unknown error'), true); store = null; return; }
+    ready = true; setMsg('');
+    renderFoodSelect(); renderAll();
+  });
 })();
 </script>
 </body>
