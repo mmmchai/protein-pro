@@ -103,4 +103,15 @@ const find = q => c.FOODS.filter(f => q.toLowerCase().split(/\s+/).every(w => ha
 assert.deepStrictEqual(find('kai lan'), ['gai-lan']); assert.deepStrictEqual(find('choy sum'), ['yu-choy']);
 assert.ok(find('kangkong').includes('ong-choy')); assert.ok(find('baby bok').includes('bok-choy'));
 
+// calorie meter thresholds
+let cb = c.calorieBar(700, 1470); assert.strictEqual(cb.state, 'ok'); assert.ok(Math.abs(cb.withinPct - 100*700/1470) < 1e-9); assert.strictEqual(cb.overPct, 0); assert.strictEqual(cb.tickPct, 100);
+assert.strictEqual(c.calorieBar(1322, 1470).state, 'ok'); assert.strictEqual(c.calorieBar(1323, 1470).state, 'near');
+assert.strictEqual(c.calorieBar(1470, 1470).state, 'near');                       // exactly on target is not over
+assert.strictEqual(c.calorieBar(1470.4, 1470).state, 'near');                      // rounds to 1,470
+assert.strictEqual(c.calorieBar(1471, 1470).state, 'over');
+cb = c.calorieBar(1764, 1470);                                                     // 20% over
+assert.strictEqual(cb.state, 'over'); assert.ok(Math.abs(cb.tickPct - 100*1470/1764) < 1e-9);
+assert.ok(Math.abs(cb.withinPct + cb.overPct - 100) < 1e-9);
+assert.strictEqual(c.calorieBar(0, 1470).state, 'ok');
+
 console.log('all tests passed,', c.FOODS.length, 'foods');
