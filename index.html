@@ -33,6 +33,7 @@ button.danger{color:var(--warn)}
 button.small{min-height:36px;padding:0 10px;font-size:14px}
 label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.row>*{min-width:0}
 .meter{margin:10px 0}
 .meter .top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
 .meter .big{font-size:26px;font-weight:700}
@@ -49,7 +50,10 @@ label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
 .actions{display:flex;gap:6px;margin-top:6px}
 .note{font-size:13px;color:var(--muted)}
 .warnbox{border:1px solid var(--warn);color:var(--warn);border-radius:10px;padding:8px 10px;font-size:14px;margin:8px 0}
-.week .d{display:grid;grid-template-columns:44px 1fr 1fr;gap:8px;align-items:center;font-size:13px;margin:6px 0}
+.week .d{display:grid;grid-template-columns:78px 1fr 1fr;gap:8px;align-items:center;font-size:13px;margin:4px 0;width:100%;min-height:28px;padding:0;border:0;background:none;text-align:left}
+.week button.d{cursor:pointer}
+.week button.d.sel .lbl{font-weight:700;color:var(--accent)}
+.scroll{max-height:420px;overflow-y:auto}
 .week .b{position:relative;height:18px;background:var(--track);border-radius:5px;overflow:hidden}
 .week .b i{position:absolute;left:0;top:0;bottom:0}
 .week .b span{position:absolute;left:6px;top:0;line-height:18px;font-size:12px}
@@ -75,8 +79,9 @@ details summary{cursor:pointer;font-weight:600;min-height:32px}
   <section class="card">
     <h2 id="formTitle">Add food</h2>
     <form id="form" autocomplete="off">
-      <label for="food">Food</label>
-      <select id="food" required></select>
+      <label for="foodSearch">Food <span id="foodCount"></span></label>
+      <input id="foodSearch" type="search" placeholder="Search: bok choy, shake, rice…" autocomplete="off" autocapitalize="none" spellcheck="false">
+      <select id="food" required aria-label="Matching foods" style="margin-top:8px"></select>
       <label for="cook">Cooking / state (match how you weighed it)</label>
       <select id="cook" required></select>
       <div class="row">
@@ -112,14 +117,28 @@ details summary{cursor:pointer;font-weight:600;min-height:32px}
   </section>
 
   <section class="card">
-    <h2>Today's log</h2>
+    <h2 id="logTitle">Today's log</h2>
     <div id="entries"></div>
   </section>
 
   <section class="card week">
-    <h2>Last 7 days</h2>
-    <div id="week"></div>
-    <div class="note" id="weekAvg"></div>
+    <h2>History</h2>
+    <div class="row">
+      <div><label for="range">Period</label>
+        <select id="range">
+          <option value="7">Last 7 days</option><option value="14">Last 14 days</option>
+          <option value="30">Last 30 days</option><option value="90">Last 90 days</option>
+          <option value="custom">Custom dates…</option>
+        </select></div>
+      <div id="rangeNote" class="note" style="align-self:end;padding-bottom:12px"></div>
+    </div>
+    <div class="row hidden" id="customRange">
+      <div><label for="rFrom">From</label><input type="date" id="rFrom"></div>
+      <div><label for="rTo">To</label><input type="date" id="rTo"></div>
+    </div>
+    <label style="display:flex;gap:8px;align-items:center;margin:10px 0"><input type="checkbox" id="hideEmpty" style="width:auto;min-height:0"> Hide days with no entries</label>
+    <div id="week" class="scroll"></div>
+    <div class="note" id="weekAvg" style="margin-top:8px"></div>
   </section>
 
   <section class="card">
@@ -177,7 +196,7 @@ var FOODS = [
   {cat:'Eggs, dairy & plant protein', id:'milk', name:'Milk (semi-skimmed)', forms:[['As is',47,3.4]]},
   {cat:'Eggs, dairy & plant protein', id:'cheddar', name:'Cheddar cheese', forms:[['As is',403,25]]},
   {cat:'Eggs, dairy & plant protein', id:'mozzarella', name:'Mozzarella (part-skim)', forms:[['As is',254,24]]},
-  {cat:'Eggs, dairy & plant protein', id:'whey', name:'Whey protein powder (typical)', forms:[['Powder',400,80]]},
+  {cat:'Protein shakes & bars', id:'whey', name:'Whey protein powder (by powder weight)', forms:[['Powder',400,80]]},
   {cat:'Eggs, dairy & plant protein', id:'tofu', name:'Tofu (firm)', forms:[['As is',144,17]]},
   {cat:'Grains & starch', id:'white-rice', name:'White rice', forms:[['Dry (uncooked)',360,6.6],['Cooked (boiled / steamed)',130,2.7]]},
   {cat:'Grains & starch', id:'brown-rice', name:'Brown rice', forms:[['Dry (uncooked)',362,7.5],['Cooked (boiled / steamed)',123,2.7]]},
@@ -214,8 +233,87 @@ var FOODS = [
   {cat:'Fats & nuts', id:'avocado', name:'Avocado', forms:[['Raw',160,2]]},
   {cat:'Fats & nuts', id:'almonds', name:'Almonds', forms:[['As is',579,21]]},
   {cat:'Fats & nuts', id:'peanut-butter', name:'Peanut butter', forms:[['As is',588,25]]},
-  {cat:'Fats & nuts', id:'olive-oil', name:'Olive oil (by weight)', forms:[['As is',884,0]]}
+  {cat:'Fats & nuts', id:'olive-oil', name:'Olive oil (by weight)', forms:[['As is',884,0]]},
+  {cat:'Protein shakes & bars', id:'shake-rtd', name:'Protein shake, ready-to-drink (typical)', forms:[['As is (1 ml ≈ 1 g)',50,9]]},
+  {cat:'Protein shakes & bars', id:'shake-water', name:'Protein shake, whey powder in water', forms:[['Prepared: 30 g powder + 250 ml water',43,8.6]]},
+  {cat:'Protein shakes & bars', id:'shake-milk', name:'Protein shake, whey powder in semi-skimmed milk', forms:[['Prepared: 30 g powder + 250 ml milk',85,11.6]]},
+  {cat:'Protein shakes & bars', id:'protein-bar', name:'Protein bar (typical)', forms:[['As is',350,33]]},
+  {cat:'Meat & fish', id:'turkey-breast', name:'Turkey breast (skinless)', forms:[['Raw',114,23.7],['Roasted / grilled',135,30]]},
+  {cat:'Meat & fish', id:'ham-lean', name:'Ham (lean, sliced)', forms:[['As is',107,17]]},
+  {cat:'Meat & fish', id:'tilapia', name:'Tilapia', forms:[['Raw',96,20],['Baked / steamed',128,26]]},
+  {cat:'Meat & fish', id:'scallops', name:'Scallops', forms:[['Raw',88,17],['Steamed / seared (oil not included)',111,20]]},
+  {cat:'Meat & fish', id:'sardines', name:'Sardines, canned in oil (drained)', forms:[['Drained',208,25]]},
+  {cat:'Eggs, dairy & plant protein', id:'skyr', name:'Skyr', forms:[['As is',63,11]]},
+  {cat:'Eggs, dairy & plant protein', id:'tempeh', name:'Tempeh', forms:[['As is',192,20]]},
+  {cat:'Eggs, dairy & plant protein', id:'seitan', name:'Seitan', forms:[['As is',141,25]]},
+  {cat:'Eggs, dairy & plant protein', id:'soy-milk', name:'Soy milk (unsweetened)', forms:[['As is',33,2.9]]},
+  {cat:'Eggs, dairy & plant protein', id:'feta', name:'Feta cheese', forms:[['As is',264,14]]},
+  {cat:'Eggs, dairy & plant protein', id:'parmesan', name:'Parmesan', forms:[['As is',431,38]]},
+  {cat:'Grains & starch', id:'couscous', name:'Couscous', forms:[['Dry (uncooked)',376,12.8],['Cooked',112,3.8]]},
+  {cat:'Grains & starch', id:'soba', name:'Soba noodles', forms:[['Cooked (boiled)',99,5.1]]},
+  {cat:'Grains & starch', id:'rice-noodles', name:'Rice noodles', forms:[['Cooked (boiled)',109,0.9]]},
+  {cat:'Grains & starch', id:'bulgur', name:'Bulgur', forms:[['Cooked (boiled)',83,3.1]]},
+  {cat:'Grains & starch', id:'barley', name:'Pearl barley', forms:[['Cooked (boiled)',123,2.3]]},
+  {cat:'Grains & starch', id:'tortilla-flour', name:'Flour tortilla / wrap', forms:[['As is',304,8]]},
+  {cat:'Grains & starch', id:'bagel', name:'Bagel', forms:[['As is',250,10]]},
+  {cat:'Grains & starch', id:'granola', name:'Granola', forms:[['As is',450,10]]},
+  {cat:'Grains & starch', id:'cornflakes', name:'Corn flakes', forms:[['As is',357,7.5]]},
+  {cat:'Grains & starch', id:'rice-cake', name:'Rice cake', forms:[['As is',387,8]]},
+  {cat:'Legumes', id:'kidney-beans', name:'Kidney beans', forms:[['Cooked / canned, drained',127,8.7]]},
+  {cat:'Legumes', id:'white-beans', name:'White beans', forms:[['Cooked / canned, drained',139,9.7]]},
+  {cat:'Legumes', id:'hummus', name:'Hummus', forms:[['As is',166,8]]},
+  {cat:'Fruit', id:'raspberries', name:'Raspberries', forms:[['Raw',52,1.2]]},
+  {cat:'Fruit', id:'cherries', name:'Cherries', forms:[['Raw',63,1.1]]},
+  {cat:'Fruit', id:'peach', name:'Peach', forms:[['Raw',39,0.9]]},
+  {cat:'Fruit', id:'plum', name:'Plum', forms:[['Raw',46,0.7]]},
+  {cat:'Fruit', id:'grapefruit', name:'Grapefruit', forms:[['Raw',42,0.8]]},
+  {cat:'Fruit', id:'papaya', name:'Papaya', forms:[['Raw',43,0.5]]},
+  {cat:'Fruit', id:'pomegranate', name:'Pomegranate seeds', forms:[['Raw',83,1.7]]},
+  {cat:'Fruit', id:'cantaloupe', name:'Cantaloupe / rockmelon', forms:[['Raw',34,0.8]]},
+  {cat:'Fruit', id:'dragon-fruit', name:'Dragon fruit', forms:[['Raw',60,1.2]]},
+  {cat:'Fruit', id:'dates', name:'Dates (dried)', forms:[['As is',282,2.5]]},
+  {cat:'Fruit', id:'raisins', name:'Raisins', forms:[['As is',299,3.1]]},
+  {cat:'Vegetables', id:'bok-choy', name:'Bok choy (pak choi)', forms:[['Raw',13,1.5],['Steamed / boiled',12,1.6]]},
+  {cat:'Vegetables', id:'napa-cabbage', name:'Napa / Chinese cabbage', forms:[['Raw',12,1.2],['Cooked',14,1.1]]},
+  {cat:'Vegetables', id:'cabbage', name:'Cabbage', forms:[['Raw',25,1.3],['Boiled',23,1.3]]},
+  {cat:'Vegetables', id:'cauliflower', name:'Cauliflower', forms:[['Raw',25,1.9],['Steamed / boiled',23,1.8]]},
+  {cat:'Vegetables', id:'kale', name:'Kale', forms:[['Raw',35,2.9],['Cooked',28,1.9]]},
+  {cat:'Vegetables', id:'lettuce', name:'Lettuce (romaine / mixed leaves)', forms:[['Raw',17,1.2]]},
+  {cat:'Vegetables', id:'asparagus', name:'Asparagus', forms:[['Raw',20,2.2],['Cooked',22,2.4]]},
+  {cat:'Vegetables', id:'green-beans', name:'Green beans', forms:[['Raw',31,1.8],['Cooked',35,1.9]]},
+  {cat:'Vegetables', id:'snow-peas', name:'Snow peas / sugar snaps', forms:[['Raw',42,2.8],['Cooked',42,2.8]]},
+  {cat:'Vegetables', id:'green-peas', name:'Green peas', forms:[['Cooked',84,5.4]]},
+  {cat:'Vegetables', id:'sweetcorn', name:'Sweetcorn', forms:[['Cooked',96,3.4]]},
+  {cat:'Vegetables', id:'brussels-sprouts', name:'Brussels sprouts', forms:[['Raw',43,3.4],['Boiled / roasted',36,2.6]]},
+  {cat:'Vegetables', id:'beetroot', name:'Beetroot', forms:[['Raw',43,1.6],['Boiled',44,1.7]]},
+  {cat:'Vegetables', id:'eggplant', name:'Eggplant / aubergine', forms:[['Raw',25,1],['Cooked (oil not included)',35,0.8]]},
+  {cat:'Vegetables', id:'pumpkin', name:'Pumpkin / squash', forms:[['Raw',26,1],['Cooked',20,0.7]]},
+  {cat:'Vegetables', id:'onion', name:'Onion', forms:[['Raw',40,1.1],['Cooked (oil not included)',44,1.4]]},
+  {cat:'Vegetables', id:'garlic', name:'Garlic', forms:[['Raw',149,6.4]]},
+  {cat:'Vegetables', id:'celery', name:'Celery', forms:[['Raw',14,0.7]]},
+  {cat:'Vegetables', id:'bean-sprouts', name:'Bean sprouts', forms:[['Raw',30,3]]},
+  {cat:'Vegetables', id:'kimchi', name:'Kimchi', forms:[['As is',15,1.1]]},
+  {cat:'Fats & nuts', id:'walnuts', name:'Walnuts', forms:[['As is',654,15]]},
+  {cat:'Fats & nuts', id:'cashews', name:'Cashews', forms:[['As is',553,18]]},
+  {cat:'Fats & nuts', id:'peanuts', name:'Peanuts', forms:[['As is',567,26]]},
+  {cat:'Fats & nuts', id:'chia', name:'Chia seeds', forms:[['As is',486,17]]},
+  {cat:'Fats & nuts', id:'flax', name:'Flaxseed', forms:[['As is',534,18]]},
+  {cat:'Fats & nuts', id:'sunflower-seeds', name:'Sunflower seeds', forms:[['As is',584,21]]},
+  {cat:'Fats & nuts', id:'tahini', name:'Tahini', forms:[['As is',595,17]]},
+  {cat:'Fats & nuts', id:'butter', name:'Butter', forms:[['As is',717,0.9]]},
+  {cat:'Fats & nuts', id:'mayo', name:'Mayonnaise', forms:[['As is',680,1]]},
+  {cat:'Sauces, sweets & drinks', id:'soy-sauce', name:'Soy sauce', forms:[['As is',53,8]]},
+  {cat:'Sauces, sweets & drinks', id:'ketchup', name:'Ketchup', forms:[['As is',101,1]]},
+  {cat:'Sauces, sweets & drinks', id:'honey', name:'Honey', forms:[['As is',304,0.3]]},
+  {cat:'Sauces, sweets & drinks', id:'sugar', name:'Sugar', forms:[['As is',387,0]]},
+  {cat:'Sauces, sweets & drinks', id:'dark-choc', name:'Dark chocolate (70%)', forms:[['As is',598,7.8]]},
+  {cat:'Sauces, sweets & drinks', id:'orange-juice', name:'Orange juice', forms:[['As is',45,0.7]]},
+  {cat:'Sauces, sweets & drinks', id:'cola', name:'Cola (regular)', forms:[['As is',42,0]]},
+  {cat:'Sauces, sweets & drinks', id:'coffee', name:'Coffee, black', forms:[['As is',1,0.1]]},
+  {cat:'Sauces, sweets & drinks', id:'almond-milk', name:'Almond milk (unsweetened)', forms:[['As is',15,0.6]]},
+  {cat:'Sauces, sweets & drinks', id:'oat-milk', name:'Oat milk', forms:[['As is',45,1]]}
 ];
+var CATEGORIES = ['My foods','Meat & fish','Protein shakes & bars','Eggs, dairy & plant protein','Grains & starch','Legumes','Vegetables','Fruit','Fats & nuts','Sauces, sweets & drinks'];
 
 function bmr(s){ return 10*s.kg + 6.25*s.cm - 5*s.age - 161; }   // Mifflin-St Jeor, female
 function targets(s){
@@ -244,7 +342,12 @@ function lastDays(entries, endDate, n){
   var out=[]; for(var i=n-1;i>=0;i--){ var d=addDays(endDate,-i); var t=totalsFor(entries,d); out.push({date:d,kcal:t.kcal,protein:t.protein,count:t.count}); }
   return out;
 }
-if (typeof module !== 'undefined') module.exports = {bmr:bmr,targets:targets,entryNutrition:entryNutrition,totalsFor:totalsFor,addDays:addDays,lastDays:lastDays,FOODS:FOODS,fmtDate:fmtDate};
+function rangeDays(entries, start, end){   // inclusive, at most 366 days, ISO date strings
+  var out=[], d=start, n=0;
+  while (d<=end && n<366){ var t=totalsFor(entries,d); out.push({date:d,kcal:t.kcal,protein:t.protein,count:t.count}); d=addDays(d,1); n++; }
+  return out;
+}
+if (typeof module !== 'undefined') module.exports = {rangeDays:rangeDays,CATEGORIES:CATEGORIES,bmr:bmr,targets:targets,entryNutrition:entryNutrition,totalsFor:totalsFor,addDays:addDays,lastDays:lastDays,FOODS:FOODS,fmtDate:fmtDate};
 </script>
 
 <script id="app">
@@ -313,13 +416,23 @@ if (typeof module !== 'undefined') module.exports = {bmr:bmr,targets:targets,ent
   function fmt(n,d){ return Number(n).toLocaleString(undefined,{maximumFractionDigits:d||0}); }
 
   function renderFoodSelect(selectedId){
+    var words = $('foodSearch').value.trim().toLowerCase().split(/\s+/).filter(Boolean), all = allFoods();
+    var foods = all.filter(function(f){ var h=(f.name+' '+f.cat).toLowerCase(); return words.every(function(w){ return h.indexOf(w)>-1; }); });
+    if (selectedId && !foods.some(function(f){ return f.id===selectedId; })){ $('foodSearch').value=''; return renderFoodSelect(selectedId); }
+    var prev = selectedId || $('food').value;
+    $('foodCount').textContent = '(' + (words.length ? foods.length+' of '+all.length : all.length) + ' foods)';
+    if (!foods.length){
+      $('food').innerHTML = '<option value="">No match. Try another word or add a custom food.</option>';
+      $('cook').innerHTML = ''; preview(); return;
+    }
     var cats = {}, order = [];
-    allFoods().forEach(function(f){ if(!cats[f.cat]){cats[f.cat]=[];order.push(f.cat);} cats[f.cat].push(f); });
+    foods.forEach(function(f){ if(!cats[f.cat]){cats[f.cat]=[];} cats[f.cat].push(f); });
+    order = CATEGORIES.filter(function(c){ return cats[c]; }).concat(Object.keys(cats).filter(function(c){ return CATEGORIES.indexOf(c)<0; }));
     $('food').innerHTML = order.map(function(c){
       return '<optgroup label="'+esc(c)+'">'+cats[c].map(function(f){ return '<option value="'+esc(f.id)+'">'+esc(f.name)+'</option>'; }).join('')+'</optgroup>';
     }).join('');
-    if (selectedId) $('food').value = selectedId;
-    renderCook();
+    if (prev && foods.some(function(f){ return f.id===prev; })) $('food').value = prev;
+    renderCook(0);
   }
   function renderCook(sel){
     var f = findFood($('food').value);
@@ -367,18 +480,33 @@ if (typeof module !== 'undefined') module.exports = {bmr:bmr,targets:targets,ent
         + '<div class="nums"><b>'+fmt(n.kcal)+'</b> kcal<br>'+fmt(n.protein,1)+' g P</div></div>';
     }).join('') : '<div class="note">Nothing logged for this day.</div>';
   }
+  function rangeBounds(){
+    var r = $('range').value;
+    if (r==='custom'){
+      var f = $('rFrom').value, t = $('rTo').value;
+      if (!f || !t) return null;
+      if (f>t){ var x=f; f=t; t=x; }
+      var cap = addDays(f, 365); if (t>cap) t = cap;
+      return {start:f, end:t};
+    }
+    return {start:addDays(viewDate, -(Number(r)-1)), end:viewDate};
+  }
   function renderWeek(){
-    var g = targets(state.settings), days = lastDays(state.entries, viewDate, 7);
-    $('week').innerHTML = '<div class="d note"><span></span><span>kcal</span><span>protein</span></div>' + days.map(function(d){
-      var lbl = new Date(d.date+'T00:00').toLocaleDateString(undefined,{weekday:'short'});
-      return '<div class="d"><span>'+lbl+'</span>'
+    var g = targets(state.settings), rb = rangeBounds();
+    $('customRange').classList.toggle('hidden', $('range').value!=='custom');
+    if (!rb){ $('week').innerHTML=''; $('weekAvg').textContent='Pick a start and end date.'; $('rangeNote').textContent=''; return; }
+    var days = rangeDays(state.entries, rb.start, rb.end), logged = days.filter(function(d){ return d.count; });
+    $('rangeNote').textContent = days.length+' day'+(days.length>1?'s':'')+(days.length===366?' (max)':'');
+    var shown = $('hideEmpty').checked ? logged : days;
+    $('week').innerHTML = '<div class="d note"><span></span><span>kcal</span><span>protein</span></div>' + (shown.length ? shown.map(function(d){
+      var lbl = new Date(d.date+'T00:00').toLocaleDateString(undefined,{weekday:'short', day:'numeric', month:'short'});
+      return '<button type="button" class="d'+(d.date===viewDate?' sel':'')+'" data-day="'+d.date+'"><span class="lbl">'+lbl+'</span>'
         + '<div class="b"><i style="width:'+Math.min(100,100*d.kcal/g.kcal)+'%;background:var(--kcal);opacity:.55"></i><span>'+(d.count?fmt(d.kcal):'–')+'</span></div>'
-        + '<div class="b"><i style="width:'+Math.min(100,100*d.protein/g.protein)+'%;background:var(--prot);opacity:.55"></i><span>'+(d.count?fmt(d.protein)+' g':'–')+'</span></div></div>';
-    }).join('');
-    var logged = days.filter(function(d){ return d.count; });
+        + '<div class="b"><i style="width:'+Math.min(100,100*d.protein/g.protein)+'%;background:var(--prot);opacity:.55"></i><span>'+(d.count?fmt(d.protein)+' g':'–')+'</span></div></button>';
+    }).join('') : '<div class="note">No entries in this period.</div>');
     $('weekAvg').textContent = logged.length ? 'Average over '+logged.length+' logged day'+(logged.length>1?'s':'')+': '
       + fmt(logged.reduce(function(a,d){return a+d.kcal;},0)/logged.length)+' kcal, '
-      + fmt(logged.reduce(function(a,d){return a+d.protein;},0)/logged.length)+' g protein. Judge progress by the weekly trend, not one day.' : '';
+      + fmt(logged.reduce(function(a,d){return a+d.protein;},0)/logged.length)+' g protein. Tap a day to open it. Judge progress by the trend, not one day.' : '';
   }
   function targetText(){
     var t = targets(state.settings);
@@ -393,15 +521,18 @@ if (typeof module !== 'undefined') module.exports = {bmr:bmr,targets:targets,ent
   }
   function renderAll(){
     $('date').value = viewDate;
+    $('logTitle').textContent = viewDate===fmtDate(new Date()) ? "Today's log" : 'Log for ' + new Date(viewDate+'T00:00').toLocaleDateString(undefined,{weekday:'short', day:'numeric', month:'short', year:'numeric'});
     renderSummary(); renderEntries(); renderWeek(); renderSettings();
   }
 
   function resetForm(){
     editingId=null; $('form').reset(); $('formTitle').textContent='Add food'; $('submitBtn').textContent='Add';
-    $('cancelEdit').classList.add('hidden'); renderCook(0);
+    $('cancelEdit').classList.add('hidden'); renderFoodSelect();
   }
 
   $('food').addEventListener('change', function(){ renderCook(0); });
+  $('foodSearch').addEventListener('input', function(){ renderFoodSelect(); });
+  $('foodSearch').addEventListener('keydown', function(ev){ if (ev.key==='Enter'){ ev.preventDefault(); $('grams').focus(); } });
   ['cook','grams','fat'].forEach(function(id){ $(id).addEventListener('input', preview); });
 
   $('form').addEventListener('submit', function(ev){
@@ -435,7 +566,7 @@ if (typeof module !== 'undefined') module.exports = {bmr:bmr,targets:targets,ent
       var en = state.entries.filter(function(x){ return x.id===b.dataset.edit; })[0]; if(!en) return;
       var food = allFoods().filter(function(f){ return f.name===en.name; })[0];
       editingId = en.id;
-      if (food){ $('food').value = food.id; renderCook(); var fi = food.forms.findIndex(function(x){ return x[0]===en.form; }); $('cook').value = String(fi<0?0:fi); }
+      if (food){ renderFoodSelect(food.id); var fi = food.forms.findIndex(function(x){ return x[0]===en.form; }); $('cook').value = String(fi<0?0:fi); }
       $('grams').value = en.grams; $('fat').value = en.fatTsp||''; preview();
       $('formTitle').textContent='Edit entry'; $('submitBtn').textContent='Save changes'; $('cancelEdit').classList.remove('hidden');
       $('form').scrollIntoView({behavior:'smooth', block:'start'});
@@ -454,6 +585,15 @@ if (typeof module !== 'undefined') module.exports = {bmr:bmr,targets:targets,ent
   });
 
   function shift(n){ viewDate = addDays(viewDate, n); pendingDel=null; renderAll(); }
+  $('range').addEventListener('change', function(){
+    if ($('range').value==='custom' && (!$('rFrom').value || !$('rTo').value)){ $('rFrom').value = addDays(viewDate,-29); $('rTo').value = viewDate; }
+    renderWeek();
+  });
+  ['rFrom','rTo','hideEmpty'].forEach(function(id){ $(id).addEventListener('change', renderWeek); });
+  $('week').addEventListener('click', function(ev){
+    var b = ev.target.closest('button[data-day]'); if(!b) return;
+    viewDate = b.dataset.day; pendingDel=null; renderAll(); window.scrollTo({top:0, behavior:'smooth'});
+  });
   $('prev').onclick=function(){ shift(-1); }; $('next').onclick=function(){ shift(1); };
   $('today').onclick=function(){ viewDate=fmtDate(new Date()); pendingDel=null; renderAll(); };
   $('date').addEventListener('change', function(){ if($('date').value){ viewDate=$('date').value; pendingDel=null; renderAll(); } });

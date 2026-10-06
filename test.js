@@ -40,4 +40,15 @@ assert.strictEqual(wk.length, 7); assert.strictEqual(wk[6].date, '2026-10-06'); 
 const ids = new Set();
 c.FOODS.forEach(f => { assert.ok(!ids.has(f.id), 'dup ' + f.id); ids.add(f.id);
   f.forms.forEach(([l, k, p]) => { assert.ok(k >= 0 && k <= 900 && p >= 0 && p * 4 <= k + 1 || k===0, f.id + ' ' + l); }); });
+// every food category is in the display order; key new foods exist
+c.FOODS.forEach(f => assert.ok(c.CATEGORIES.includes(f.cat), 'category missing: ' + f.cat));
+['bok-choy', 'shake-rtd', 'shake-water', 'shake-milk'].forEach(id => assert.ok(c.FOODS.find(f => f.id === id), id));
+
+// rangeDays: inclusive, ordered, capped at 366 days, picks up older entries beyond 7 days
+const old = [e('2026-07-01', 100, 10, 100, 0)];
+const r = c.rangeDays(old, '2026-06-30', '2026-07-03');
+assert.strictEqual(r.length, 4); assert.strictEqual(r[1].kcal, 100); assert.strictEqual(r[0].count, 0);
+assert.strictEqual(c.rangeDays(old, '2020-01-01', '2026-07-03').length, 366);
+assert.strictEqual(c.rangeDays(old, '2026-07-03', '2026-07-01').length, 0);
+
 console.log('all tests passed,', c.FOODS.length, 'foods');
