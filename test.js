@@ -79,4 +79,21 @@ assert.strictEqual(c.unitsFor(whiteRice, 0).length, 0); assert.strictEqual(c.uni
 assert.strictEqual(c.unitsFor({custom: true, servingG: 60}, 0)[0].g, 60);
 assert.strictEqual(c.unitsFor({custom: true}, 0).length, 0);
 
+// meals
+assert.deepStrictEqual(c.MEALS.map(m => m[0]), ['breakfast', 'lunch', 'dinner', 'snack']);
+[[6, 'breakfast'], [10, 'breakfast'], [11, 'lunch'], [14, 'lunch'], [15, 'snack'], [17, 'dinner'], [20, 'dinner'], [21, 'snack'], [23, 'snack'], [2, 'breakfast']]
+  .forEach(([h, m]) => assert.strictEqual(c.mealForHour(h), m, 'hour ' + h));
+
+// frequent foods
+const mk = (date, name, grams, extra) => Object.assign({ date, name, form: 'As is', kcal100: 100, p100: 10, grams, fatTsp: 0 }, extra);
+const hist = [mk('2026-10-01', 'Egg', 100), mk('2026-10-02', 'Egg', 100), mk('2026-10-05', 'Egg', 100),
+  mk('2026-10-03', 'Rice', 150), mk('2026-10-04', 'Rice', 150), mk('2026-10-04', 'Rice', 200),
+  mk('2026-10-04', 'Once', 50), mk('2026-05-01', 'Old', 10), mk('2026-05-02', 'Old', 10), mk('2026-10-07', 'Future', 5), mk('2026-10-07', 'Future', 5)];
+let fq = c.frequentFoods(hist, '2026-10-06', 60, 5, []);
+assert.deepStrictEqual(fq.map(o => o.sample.name + ':' + o.count), ['Egg:3', 'Rice:2']);   // different amount = different item; old, future, single excluded
+assert.deepStrictEqual(c.frequentFoods(hist, '2026-10-06', 60, 5, [c.entryKey(hist[0])]).map(o => o.sample.name), ['Rice']);
+assert.strictEqual(c.frequentFoods(hist, '2026-10-06', 60, 1, []).length, 1);
+assert.notStrictEqual(c.entryKey(mk('d', 'Egg', 100)), c.entryKey(mk('d', 'Egg', 100, { fatTsp: 1 })));
+assert.notStrictEqual(c.entryKey(mk('d', 'Latte', 100, { manual: true, kcal100: 180 })), c.entryKey(mk('d', 'Latte', 100, { manual: true, kcal100: 200 })));
+
 console.log('all tests passed,', c.FOODS.length, 'foods');

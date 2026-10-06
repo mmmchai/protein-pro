@@ -59,6 +59,13 @@ label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
 .week .b span{position:absolute;left:6px;top:0;line-height:18px;font-size:12px}
 details summary{cursor:pointer;font-weight:600;min-height:32px}
 .hidden{display:none!important}
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg button{flex:1;min-width:72px;padding:0 8px}
+.seg button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:600}
+.mealhead{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin:14px 0 2px;font-size:14px;font-weight:700}
+.mealhead:first-child{margin-top:0}
+.mealhead span{font-weight:400;color:var(--muted);font-size:13px}
+.entry .main .actions button.pinned{color:var(--accent);font-weight:600}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .chips button{min-width:44px}
 label.chk{display:flex;gap:10px;align-items:center;color:var(--ink);font-size:15px;margin:14px 0 0}
@@ -79,6 +86,18 @@ label.chk input{width:auto;min-height:0}
   </div>
 
   <section class="card" id="summary" aria-live="polite"></section>
+
+  <section class="card">
+    <h2>Adding to</h2>
+    <div class="seg" id="meal" role="group" aria-label="Meal">
+      <button type="button" data-meal="breakfast">Breakfast</button><button type="button" data-meal="lunch">Lunch</button><button type="button" data-meal="dinner">Dinner</button><button type="button" data-meal="snack">Snack</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Quick add</h2>
+    <div id="quick"></div>
+  </section>
 
   <section class="card">
     <h2 id="formTitle">Add food</h2>
@@ -121,7 +140,9 @@ label.chk input{width:auto;min-height:0}
       </div>
     </form>
     <details style="margin-top:12px">
-      <summary>Add a custom / packaged food</summary>
+      <summary>Saved foods: add or delete</summary>
+      <div id="myFoods" style="margin-top:8px"></div>
+      <h2 style="margin-top:16px">Add a custom / packaged food</h2>
       <form id="customForm" autocomplete="off">
         <label for="cName">Name</label>
         <input id="cName" required maxlength="60">
@@ -441,6 +462,24 @@ function fmtQty(q){
   }
   return String(Math.round(q*10)/10);
 }
+var MEALS = [['breakfast','Breakfast'],['lunch','Lunch'],['dinner','Dinner'],['snack','Snack']];
+function mealForHour(h){ return h<11 ? 'breakfast' : h<15 ? 'lunch' : h<17 ? 'snack' : h<21 ? 'dinner' : 'snack'; }
+// Same food, state and amount (or same manual totals) -> same key
+function entryKey(e){
+  return [e.name, e.form, e.manual ? 'm'+e.kcal100+'/'+e.p100 : Math.round(e.grams*10)/10, e.fatTsp||0].join('|');
+}
+// Entries logged at least twice in the last `days` days, most frequent first
+function frequentFoods(entries, today, days, limit, excludeKeys){
+  var start = addDays(today, -days), seen = {}, list = [];
+  entries.forEach(function(e){
+    if (e.date < start || e.date > today) return;
+    var k = entryKey(e), o = seen[k];
+    if (!o){ o = seen[k] = {key:k, count:0, last:'', sample:e}; list.push(o); }
+    o.count++; if (e.date >= o.last){ o.last = e.date; o.sample = e; }
+  });
+  return list.filter(function(o){ return o.count>=2 && (excludeKeys||[]).indexOf(o.key)<0; })
+    .sort(function(a,b){ return b.count-a.count || (a.last<b.last ? 1 : a.last>b.last ? -1 : 0); }).slice(0, limit);
+}
 function bmr(s){ return 10*s.kg + 6.25*s.cm - 5*s.age - 161; }   // Mifflin-St Jeor, female
 function targets(s){
   var tdee = bmr(s) * s.activity;
@@ -473,7 +512,7 @@ function rangeDays(entries, start, end){   // inclusive, at most 366 days, ISO d
   while (d<=end && n<366){ var t=totalsFor(entries,d); out.push({date:d,kcal:t.kcal,protein:t.protein,count:t.count}); d=addDays(d,1); n++; }
   return out;
 }
-if (typeof module !== 'undefined') module.exports = {UNITS:UNITS,unitsFor:unitsFor,parseQty:parseQty,fmtQty:fmtQty,rangeDays:rangeDays,CATEGORIES:CATEGORIES,bmr:bmr,targets:targets,entryNutrition:entryNutrition,totalsFor:totalsFor,addDays:addDays,lastDays:lastDays,FOODS:FOODS,fmtDate:fmtDate};
+if (typeof module !== 'undefined') module.exports = {MEALS:MEALS,mealForHour:mealForHour,entryKey:entryKey,frequentFoods:frequentFoods,UNITS:UNITS,unitsFor:unitsFor,parseQty:parseQty,fmtQty:fmtQty,rangeDays:rangeDays,CATEGORIES:CATEGORIES,bmr:bmr,targets:targets,entryNutrition:entryNutrition,totalsFor:totalsFor,addDays:addDays,lastDays:lastDays,FOODS:FOODS,fmtDate:fmtDate};
 </script>
 
 <script id="app">
@@ -481,20 +520,29 @@ if (typeof module !== 'undefined') module.exports = {UNITS:UNITS,unitsFor:unitsF
   if (typeof document === 'undefined') return;
   var KEY = 'proteinpro.v1';
   var DEFAULTS = {kg:52, cm:160, age:33, activity:1.45, deficitPct:15, proteinPerKg:1.9};
-  var state = {settings:Object.assign({}, DEFAULTS), customFoods:[], entries:[]};
+  var state = {settings:Object.assign({}, DEFAULTS), customFoods:[], shortlist:[], entries:[]};
   var store = null;          // {db, base} when saving to the viewer's account, else null (browser storage)
   var ready = false, knownMonths = {};
   var viewDate = fmtDate(new Date());
   var editingId = null, pendingDel = null, pendingImport = null;
   var $ = function(id){ return document.getElementById(id); };
 
-  function setMsg(t, bad){ $('msg').textContent = t||''; $('msg').className = 'note' + (bad?' over':''); }
+  var msgToken = 0, saveErr = false;
+  function setMsg(t, bad, undoFn){
+    var m = $('msg'), my = ++msgToken; m.textContent = t||''; m.className = 'note' + (bad?' over':'');
+    if (undoFn){
+      var b = document.createElement('button'); b.type='button'; b.className='small'; b.textContent='Undo'; b.style.marginLeft='8px';
+      b.onclick = function(){ undoFn(); }; m.appendChild(b);
+      setTimeout(function(){ if (msgToken===my) setMsg(''); }, 10000);
+    }
+  }
+  function cleanList(a){ return Array.isArray(a) ? a.filter(function(x){ return x && typeof x.name==='string'; }) : []; }
 
   // ---------- persistence ----------
   function localLoad(){
     try{
       var s = JSON.parse(localStorage.getItem(KEY));
-      if (s && Array.isArray(s.entries)) state = {settings:Object.assign({}, DEFAULTS, s.settings), customFoods:s.customFoods||[], entries:s.entries};
+      if (s && Array.isArray(s.entries)) state = {settings:Object.assign({}, DEFAULTS, s.settings), customFoods:cleanList(s.customFoods), shortlist:cleanList(s.shortlist), entries:s.entries};
     }catch(e){}
   }
   function localSave(){ try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){ setMsg('Could not save: browser storage is unavailable.', true); } }
@@ -511,7 +559,7 @@ if (typeof module !== 'undefined') module.exports = {UNITS:UNITS,unitsFor:unitsF
     var snap = await store.db.collection(store.base).get(), entries = [];
     snap.docs.forEach(function(d){
       var v = d.data() || {};
-      if (d.id==='settings') state.settings = Object.assign({}, DEFAULTS, v.settings), state.customFoods = Array.isArray(v.customFoods)?v.customFoods:[];
+      if (d.id==='settings') state.settings = Object.assign({}, DEFAULTS, v.settings), state.customFoods = cleanList(v.customFoods), state.shortlist = cleanList(v.shortlist);
       else if (/^m-\d{4}-\d{2}$/.test(d.id) && Array.isArray(v.entries)){ knownMonths[d.id.slice(2)] = 1; entries = entries.concat(v.entries); }
     });
     state.entries = entries;
@@ -521,14 +569,14 @@ if (typeof module !== 'undefined') module.exports = {UNITS:UNITS,unitsFor:unitsF
   function persist(what){
     if (!store){ localSave(); return; }
     var ops = [];
-    if (what.settings) ops.push(function(){ return store.db.doc(store.base+'/settings').set({settings:state.settings, customFoods:state.customFoods}); });
+    if (what.settings) ops.push(function(){ return store.db.doc(store.base+'/settings').set({settings:state.settings, customFoods:state.customFoods, shortlist:state.shortlist}); });
     (what.months||[]).forEach(function(m){
       knownMonths[m] = 1;
       ops.push(function(){ return store.db.doc(store.base+'/m-'+m).set({entries:state.entries.filter(function(e){ return e.date.slice(0,7)===m; })}); });
     });
     queue = queue.then(function(){ return Promise.all(ops.map(function(f){ return f(); })); })
-      .then(function(){ setMsg(''); })
-      .catch(function(e){ setMsg('Could not save: '+((e&&e.message)||'unknown error')+'. Reload before adding more.', true); });
+      .then(function(){ if (saveErr){ saveErr = false; setMsg(''); } })
+      .catch(function(e){ saveErr = true; setMsg('Could not save: '+((e&&e.message)||'unknown error')+'. Reload before adding more.', true); });
   }
   var settingsTimer = null;
   function persistSettingsSoon(){ clearTimeout(settingsTimer); settingsTimer = setTimeout(function(){ persist({settings:true}); }, 600); }
@@ -626,19 +674,111 @@ if (typeof module !== 'undefined') module.exports = {UNITS:UNITS,unitsFor:unitsF
     if (t.kcal>0 && t.kcal < CALORIE_FLOOR && viewDate<fmtDate(new Date())) html += '<div class="warnbox">Under '+CALORIE_FLOOR+' kcal. Eating this little tends to cost muscle and backfire. Check you logged everything.</div>';
     $('summary').innerHTML = html;
   }
+  function metaText(e){
+    return e.manual ? 'Entered manually'
+      : esc(e.form)+' · '+(e.unit ? fmtQty(e.qty)+' × '+esc(e.unit)+' (≈'+fmt(e.grams,1)+' g)' : fmt(e.grams,1)+' g')+(e.fatTsp>0?' · +'+fmt(e.fatTsp,1)+' tsp oil':'');
+  }
+  function numsHtml(e){ var n = entryTotals(e); return '<div class="nums"><b>'+fmt(n.kcal)+'</b> kcal<br>'+fmt(n.protein,1)+' g P</div>'; }
+  function entryRow(e){
+    var pinned = state.shortlist.some(function(t){ return t.key===entryKey(e); });
+    var acts = pendingDel===e.id
+      ? '<span class="note">Delete this entry?</span><button class="small danger" data-delok="'+esc(e.id)+'">Yes, delete</button><button class="small" data-delno="1">Keep</button>'
+      : '<button class="small" data-edit="'+esc(e.id)+'">Edit</button><button class="small danger" data-del="'+esc(e.id)+'">Delete</button>'
+        + '<button class="small'+(pinned?' pinned':'')+'" data-pin="'+esc(e.id)+'" aria-pressed="'+pinned+'">'+(pinned?'★ In shortlist':'☆ Shortlist')+'</button>';
+    return '<div class="entry"><div class="main"><div class="name">'+esc(e.name)+'</div><div class="meta">'+metaText(e)+'</div>'
+      + '<div class="actions">'+acts+'</div></div>'+numsHtml(e)+'</div>';
+  }
   function renderEntries(){
     var list = state.entries.filter(function(e){ return e.date===viewDate; });
-    $('entries').innerHTML = list.length ? list.map(function(e){
-      var n = entryTotals(e);
-      var acts = pendingDel===e.id
-        ? '<span class="note">Delete this entry?</span><button class="small danger" data-delok="'+esc(e.id)+'">Yes, delete</button><button class="small" data-delno="1">Keep</button>'
-        : '<button class="small" data-edit="'+esc(e.id)+'">Edit</button><button class="small danger" data-del="'+esc(e.id)+'">Delete</button>';
-      return '<div class="entry"><div class="main"><div class="name">'+esc(e.name)+'</div>'
-        + '<div class="meta">'+(e.manual ? 'Entered manually' : esc(e.form)+' · '+(e.unit ? fmtQty(e.qty)+' × '+esc(e.unit)+' (≈'+fmt(e.grams,1)+' g)' : fmt(e.grams,1)+' g')+(e.fatTsp>0?' · +'+fmt(e.fatTsp,1)+' tsp oil':''))+'</div>'
-        + '<div class="actions">'+acts+'</div></div>'
-        + '<div class="nums"><b>'+fmt(n.kcal)+'</b> kcal<br>'+fmt(n.protein,1)+' g P</div></div>';
-    }).join('') : '<div class="note">Nothing logged for this day.</div>';
+    if (!list.length){ $('entries').innerHTML = '<div class="note">Nothing logged for this day.</div>'; return; }
+    var groups = MEALS.concat([['other','Other']]), html = '';
+    groups.forEach(function(g){
+      var items = list.filter(function(e){ return g[0]==='other' ? !MEALS.some(function(m){ return m[0]===e.meal; }) : e.meal===g[0]; });
+      if (!items.length) return;
+      var k = 0, p = 0; items.forEach(function(e){ var n = entryTotals(e); k += n.kcal; p += n.protein; });
+      html += '<div class="mealhead"><span style="color:var(--ink);font-size:14px;font-weight:700">'+g[1]+'</span><span>'+fmt(k)+' kcal · '+fmt(p,1)+' g P</span></div>' + items.map(entryRow).join('');
+    });
+    $('entries').innerHTML = html;
   }
+  // ---- meal selector ----
+  var currentMeal = mealForHour(new Date().getHours());
+  function mealLabel(m){ var x = MEALS.filter(function(g){ return g[0]===m; })[0]; return x ? x[1] : 'Other'; }
+  function setMeal(m){
+    currentMeal = m;
+    Array.prototype.forEach.call($('meal').querySelectorAll('button'), function(b){ b.setAttribute('aria-pressed', String(b.dataset.meal===m)); });
+  }
+  $('meal').addEventListener('click', function(ev){ var b = ev.target.closest('button[data-meal]'); if (b) setMeal(b.dataset.meal); });
+  // ---- shortlist (quick add) ----
+  var suggestions = [];
+  function templateOf(e){
+    var t = {id:'s'+Date.now()+Math.random().toString(36).slice(2,5), key:entryKey(e), name:e.name, form:e.form, kcal100:e.kcal100, p100:e.p100, grams:e.grams, fatTsp:e.fatTsp||0};
+    if (e.manual) t.manual = true;
+    if (e.unit){ t.unit = e.unit; t.qty = e.qty; }
+    return t;
+  }
+  function quickRow(t, btns){
+    return '<div class="entry"><div class="main"><div class="name">'+esc(t.name)+'</div><div class="meta">'+metaText(t)+'</div></div>'+numsHtml(t)
+      +'<div style="display:flex;flex-direction:column;gap:6px">'+btns+'</div></div>';
+  }
+  function renderQuick(){
+    var pinned = state.shortlist, html = '';
+    suggestions = frequentFoods(state.entries, fmtDate(new Date()), 60, 5, pinned.map(function(t){ return t.key; }));
+    html += pinned.map(function(t){
+      return quickRow(t, '<button type="button" class="small primary" data-qadd="'+esc(t.id)+'">Add</button><button type="button" class="small" data-qrm="'+esc(t.id)+'" aria-label="Remove '+esc(t.name)+' from shortlist">Remove</button>');
+    }).join('');
+    if (suggestions.length){
+      html += '<div class="note" style="margin-top:10px">Often logged (last 60 days)</div>' + suggestions.map(function(o, i){
+        return quickRow(o.sample, '<button type="button" class="small primary" data-sadd="'+i+'">Add</button><button type="button" class="small" data-spin="'+i+'">☆ Pin</button>');
+      }).join('');
+    }
+    if (!html) html = '<div class="note">Tap ☆ Shortlist on a logged food to pin it here. Foods you log twice or more also appear here.</div>';
+    $('quick').innerHTML = html;
+  }
+  function addFromTemplate(t){
+    if (!ready){ setMsg('Still loading your log. Try again in a moment.', true); return; }
+    var rec = {id:'e'+Date.now()+Math.random().toString(36).slice(2,6), date:viewDate, meal:currentMeal,
+      name:t.name, form:t.form, kcal100:t.kcal100, p100:t.p100, grams:t.grams, fatTsp:t.fatTsp||0};
+    if (t.manual) rec.manual = true;
+    if (t.unit){ rec.unit = t.unit; rec.qty = t.qty; }
+    state.entries.push(rec); persist({months:[rec.date.slice(0,7)]}); renderAll();
+    setMsg('Added '+t.name+' to '+mealLabel(currentMeal)+'.', false, function(){
+      state.entries = state.entries.filter(function(x){ return x.id!==rec.id; });
+      persist({months:[rec.date.slice(0,7)]}); renderAll(); setMsg('');
+    });
+  }
+  function pinTemplate(t){
+    if (state.shortlist.some(function(x){ return x.key===t.key; })) return;
+    if (state.shortlist.length >= 12){ setMsg('Your shortlist is full (12). Remove one first.', true); return; }
+    state.shortlist.push(t); persist({settings:true}); renderQuick(); renderEntries();
+  }
+  $('quick').addEventListener('click', function(ev){
+    var b = ev.target.closest('button'); if (!b) return;
+    if (b.dataset.qadd){ var t = state.shortlist.filter(function(x){ return x.id===b.dataset.qadd; })[0]; if (t) addFromTemplate(t); }
+    else if (b.dataset.qrm){ state.shortlist = state.shortlist.filter(function(x){ return x.id!==b.dataset.qrm; }); persist({settings:true}); renderQuick(); renderEntries(); }
+    else if (b.dataset.sadd){ var o = suggestions[Number(b.dataset.sadd)]; if (o) addFromTemplate(o.sample); }
+    else if (b.dataset.spin){ var o2 = suggestions[Number(b.dataset.spin)]; if (o2) pinTemplate(templateOf(o2.sample)); }
+  });
+  // ---- saved (custom) foods: delete ----
+  var pendingFoodDel = null;
+  function renderMyFoods(){
+    $('myFoods').innerHTML = state.customFoods.length ? state.customFoods.map(function(c){
+      var acts = pendingFoodDel===c.id
+        ? '<button type="button" class="small danger" data-fdok="'+esc(c.id)+'">Yes, delete</button><button type="button" class="small" data-fdno="1">Keep</button>'
+        : '<button type="button" class="small danger" data-fd="'+esc(c.id)+'">Delete</button>';
+      return '<div class="entry"><div class="main"><div class="name">'+esc(c.name)+'</div><div class="meta">'+fmt(c.kcal)+' kcal, '+fmt(c.protein,1)+' g protein per 100 g'
+        +(c.servingG>0?' · serving '+fmt(c.servingG,1)+' g':'')+'</div>'
+        +(pendingFoodDel===c.id?'<div class="note">Delete this food? Past log entries keep their numbers.</div>':'')+'</div><div style="display:flex;gap:6px">'+acts+'</div></div>';
+    }).join('') : '<div class="note">No saved foods yet. Foods you add below appear here.</div>';
+  }
+  $('myFoods').addEventListener('click', function(ev){
+    var b = ev.target.closest('button'); if (!b) return;
+    if (b.dataset.fd){ pendingFoodDel = b.dataset.fd; renderMyFoods(); }
+    else if (b.dataset.fdno){ pendingFoodDel = null; renderMyFoods(); }
+    else if (b.dataset.fdok){
+      state.customFoods = state.customFoods.filter(function(c){ return c.id!==b.dataset.fdok; });
+      pendingFoodDel = null; persist({settings:true}); renderFoodSelect(); renderMyFoods(); setMsg('Saved food deleted.');
+    }
+  });
   function rangeBounds(){
     var r = $('range').value;
     if (r==='custom'){
@@ -681,7 +821,7 @@ if (typeof module !== 'undefined') module.exports = {UNITS:UNITS,unitsFor:unitsF
   function renderAll(){
     $('date').value = viewDate;
     $('logTitle').textContent = viewDate===fmtDate(new Date()) ? "Today's log" : 'Log for ' + new Date(viewDate+'T00:00').toLocaleDateString(undefined,{weekday:'short', day:'numeric', month:'short', year:'numeric'});
-    renderSummary(); renderEntries(); renderWeek(); renderSettings();
+    renderSummary(); renderEntries(); renderQuick(); renderMyFoods(); renderWeek(); renderSettings();
   }
 
   function resetForm(){
@@ -705,7 +845,7 @@ if (typeof module !== 'undefined') module.exports = {UNITS:UNITS,unitsFor:unitsF
   $('form').addEventListener('submit', function(ev){
     ev.preventDefault();
     if (!ready){ setMsg('Still loading your log. Try again in a moment.', true); return; }
-    var rec = {id: editingId || ('e'+Date.now()+Math.random().toString(36).slice(2,6)), date:viewDate};
+    var rec = {id: editingId || ('e'+Date.now()+Math.random().toString(36).slice(2,6)), date:viewDate, meal:currentMeal};
     if ($('manual').checked){
       var nm = $('mName').value.trim(), kc = Number($('mKcal').value), pr = Number($('mProt').value)||0;
       if (!nm){ setMsg('Enter a name for this food.', true); return; }
@@ -731,7 +871,13 @@ if (typeof module !== 'undefined') module.exports = {UNITS:UNITS,unitsFor:unitsF
 
   $('entries').addEventListener('click', function(ev){
     var b = ev.target.closest('button'); if(!b) return;
-    if (b.dataset.del){ pendingDel = b.dataset.del; renderEntries(); }
+    if (b.dataset.pin){
+      var pe = state.entries.filter(function(x){ return x.id===b.dataset.pin; })[0]; if (!pe) return;
+      var pk = entryKey(pe), had = state.shortlist.some(function(x){ return x.key===pk; });
+      if (had){ state.shortlist = state.shortlist.filter(function(x){ return x.key!==pk; }); persist({settings:true}); renderQuick(); renderEntries(); }
+      else pinTemplate(templateOf(pe));
+    }
+    else if (b.dataset.del){ pendingDel = b.dataset.del; renderEntries(); }
     else if (b.dataset.delno){ pendingDel = null; renderEntries(); }
     else if (b.dataset.delok){
       var e = state.entries.filter(function(x){ return x.id===b.dataset.delok; })[0];
@@ -744,11 +890,18 @@ if (typeof module !== 'undefined') module.exports = {UNITS:UNITS,unitsFor:unitsF
     } else if (b.dataset.edit){
       var en = state.entries.filter(function(x){ return x.id===b.dataset.edit; })[0]; if(!en) return;
       editingId = en.id; autoFilled = false;
-      if (en.manual){
+      if (MEALS.some(function(m){ return m[0]===en.meal; })) setMeal(en.meal);
+      var foodNow = en.manual ? null : allFoods().filter(function(f){ return f.name===en.name; })[0];
+      if (!en.manual && !foodNow){
+        // food was deleted from the list: edit it as plain totals so nothing is changed by accident
+        var tot = entryTotals(en);
+        $('manual').checked = true; $('mName').value = en.name; $('mKcal').value = Math.round(tot.kcal); $('mProt').value = Math.round(tot.protein*10)/10 || ''; applyMode();
+        setMsg('"'+en.name+'" is no longer in your food list, so it opens as totals you can adjust.');
+      } else if (en.manual){
         $('manual').checked = true; $('mName').value = en.name; $('mKcal').value = en.kcal100; $('mProt').value = en.p100||''; applyMode();
       } else {
         $('manual').checked = false; applyMode();
-        var food = allFoods().filter(function(f){ return f.name===en.name; })[0];
+        var food = foodNow;
         if (food){ renderFoodSelect(food.id); var fi = food.forms.findIndex(function(x){ return x[0]===en.form; }); $('cook').value = String(fi<0?0:fi); renderUnits(false); }
         var uopt = en.unit ? Array.prototype.filter.call($('unit').options, function(o){ return o.value==='u:'+en.unit; })[0] : null;
         if (uopt){ $('unit').value = uopt.value; $('amount').value = fmtQty(en.qty); }
@@ -767,7 +920,7 @@ if (typeof module !== 'undefined') module.exports = {UNITS:UNITS,unitsFor:unitsF
     if (!name || !(k>=0) || !(p>=0)) return;
     var id = 'c'+Date.now();
     var sv = Number($('cServ').value); state.customFoods.push({id:id, name:name, kcal:k, protein:p, servingG: sv>0 ? sv : undefined}); persist({settings:true});
-    $('customForm').reset(); renderFoodSelect(id);
+    $('customForm').reset(); renderFoodSelect(id); renderMyFoods();
     setMsg('Saved "'+name+'". It is now under "My foods" in the food list.');
   });
 
@@ -813,7 +966,7 @@ if (typeof module !== 'undefined') module.exports = {UNITS:UNITS,unitsFor:unitsF
     $('impYes').onclick = function(){
       var d = pendingImport; pendingImport = null; showImport();
       var oldMonths = Object.keys(knownMonths);
-      state = {settings:Object.assign({}, DEFAULTS, d.settings), customFoods:Array.isArray(d.customFoods)?d.customFoods:[], entries:d.entries};
+      state = {settings:Object.assign({}, DEFAULTS, d.settings), customFoods:cleanList(d.customFoods), shortlist:cleanList(d.shortlist), entries:d.entries};
       var months = {}; oldMonths.forEach(function(m){ months[m]=1; });
       state.entries.forEach(function(e){ if(e && typeof e.date==='string') months[e.date.slice(0,7)]=1; });
       persist({settings:true, months:Object.keys(months)}); renderFoodSelect(); renderAll(); setMsg('Backup imported.');
@@ -834,7 +987,7 @@ if (typeof module !== 'undefined') module.exports = {UNITS:UNITS,unitsFor:unitsF
   });
 
   // ---------- start ----------
-  renderFoodSelect(); renderAll(); setMsg('Loading your log…');
+  setMeal(currentMeal); renderFoodSelect(); renderAll(); setMsg('Loading your log…');
   initStore().then(async function(s){
     store = s;
     try{ if (store) await dbLoad(); else localLoad(); }
