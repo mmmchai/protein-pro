@@ -185,4 +185,13 @@ assert.deepStrictEqual([tg.protein, tg.carbs, tg.kcal], [110, 110, 1470]);
 tg = c.targets({ ...me, calTarget: null, protTarget: 0, carbTarget: undefined }); assert.ok(tg.auto.kcal && tg.auto.protein && tg.auto.carbs);
 assert.ok(c.targets({ ...me, protTarget: 200, carbTarget: 300, calTarget: 1300 }).fat === 0);   // fat never negative
 
+// calorie KPIs: food vs target, and adjusted total vs target
+let kp = c.calorieKpis(1500, 312, 1320, true);
+assert.deepStrictEqual([kp.foodDelta, kp.foodState, kp.net, kp.netDelta, kp.netState, kp.left], [180, 'over', 1188, -132, 'near', 132]);
+kp = c.calorieKpis(1000, 312, 1320, true); assert.deepStrictEqual([kp.foodDelta, kp.foodState, kp.net, kp.netState], [-320, 'ok', 688, 'ok']);
+kp = c.calorieKpis(1700, 312, 1320, true); assert.deepStrictEqual([kp.foodState, kp.netState, kp.netDelta], ['over', 'over', 68]);
+kp = c.calorieKpis(1400, 500, 1320, true); assert.deepStrictEqual([kp.foodState, kp.netState], ['over', 'ok']);   // workout brings an over day back under
+kp = c.calorieKpis(1400, 500, 1320, false); assert.deepStrictEqual([kp.net, kp.netState, kp.burn], [1400, 'over', 0]);   // not subtracting
+kp = c.calorieKpis(1320, 0, 1320, true); assert.deepStrictEqual([kp.foodDelta, kp.foodState, kp.netState], [0, 'near', 'near']);
+
 console.log('all tests passed,', c.FOODS.length, 'foods');

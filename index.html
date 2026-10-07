@@ -111,6 +111,24 @@ details summary{cursor:pointer;font-weight:600;min-height:32px}
 .sw.burn{background:repeating-linear-gradient(45deg,var(--burn) 0 3px,color-mix(in srgb, var(--burn) 55%, var(--card)) 3px 6px)}
 .tgtrow{display:grid;grid-template-columns:1fr auto;gap:8px}
 .tgt .note{margin-top:4px}
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.kpi{border:2px solid var(--line);border-radius:12px;padding:10px;min-width:0;background:var(--bg)}
+.kpi.good{border-color:var(--accent)} .kpi.near{border-color:var(--caution)}
+.kpi.over{border-color:var(--warn);background:color-mix(in srgb, var(--warn) 10%, var(--card))}
+.kpi .kl{display:block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.kpi .kv{display:block;font-size:34px;line-height:1.1;font-weight:800;font-variant-numeric:tabular-nums;margin-top:2px}
+.kpi.good .kv{color:var(--accent)} .kpi.over .kv{color:var(--warn)}
+.kpi .ku{display:block;font-size:12px;color:var(--muted)}
+.kpi .pill{display:inline-block;margin:6px 0 0;font-size:11px}
+.pill.good{background:var(--accent);color:var(--on-accent)}
+.eq{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:center;gap:4px 10px;margin:12px 0 4px;font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
+.eq b{font-size:17px;color:var(--ink)} .eq .burn b{color:var(--burn)} .eq .op{font-size:16px;font-weight:700}
+.macros{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.mac{border:1px solid var(--line);border-radius:12px;padding:10px;min-width:0;background:var(--bg)}
+.mac .kl{display:block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.mac .kv{display:block;font-size:26px;font-weight:800;line-height:1.15;font-variant-numeric:tabular-nums}
+.mac .ku{display:block;font-size:12px;color:var(--muted)}
+.mac .bar{margin-top:6px}
 .dots{display:flex;gap:6px;flex-wrap:wrap}
 .dot{width:16px;height:16px;border-radius:50%;border:2px solid var(--accent)}
 .dot.on{background:var(--accent)}
@@ -674,6 +692,11 @@ function lastLift(workouts, name, beforeDate, excludeId){
   });
   return best;
 }
+// The two calorie KPIs: food on its own vs the target, and the adjusted total (food - workout) vs the target.
+function calorieKpis(food, burn, target, subtract){
+  var f = Math.round(food), d = dayBudget(food, burn, target, subtract), fs = calorieBar(food, target);
+  return {food:f, foodDelta:f - target, foodState:fs.state, burn:d.burn, net:d.net, netDelta:d.net - target, netState:d.state, left:d.left};
+}
 function bmr(s){ return 10*s.kg + 6.25*s.cm - 5*s.age - 161; }   // Mifflin-St Jeor, female
 // Calories and protein come from your stats unless you set them. Carbs default to a share of whatever
 // the calorie target is, so changing calories moves the auto carb target with it.
@@ -732,7 +755,7 @@ function dayBudget(food, burn, target, subtract){
   return {food:f, burn:b, net:n, left:target - n, state: n > target ? 'over' : n >= 0.9*target ? 'near' : 'ok',
           solidPct:100*Math.max(0, n)/max, burnPct:100*Math.min(b, f)/max, tickPct:100*target/max};
 }
-if (typeof module !== 'undefined') module.exports = {CARBS:CARBS,workoutKcalFor:workoutKcalFor,dayBudget:dayBudget,WORKOUT_TYPES:WORKOUT_TYPES,INTENSITIES:INTENSITIES,workoutKcal:workoutKcal,weekStart:weekStart,weekSummary:weekSummary,lastLift:lastLift,calorieBar:calorieBar,MEALS:MEALS,mealForHour:mealForHour,entryKey:entryKey,frequentFoods:frequentFoods,UNITS:UNITS,unitsFor:unitsFor,parseQty:parseQty,fmtQty:fmtQty,rangeDays:rangeDays,CATEGORIES:CATEGORIES,bmr:bmr,targets:targets,entryNutrition:entryNutrition,totalsFor:totalsFor,addDays:addDays,lastDays:lastDays,FOODS:FOODS,fmtDate:fmtDate};
+if (typeof module !== 'undefined') module.exports = {calorieKpis:calorieKpis,CARBS:CARBS,workoutKcalFor:workoutKcalFor,dayBudget:dayBudget,WORKOUT_TYPES:WORKOUT_TYPES,INTENSITIES:INTENSITIES,workoutKcal:workoutKcal,weekStart:weekStart,weekSummary:weekSummary,lastLift:lastLift,calorieBar:calorieBar,MEALS:MEALS,mealForHour:mealForHour,entryKey:entryKey,frequentFoods:frequentFoods,UNITS:UNITS,unitsFor:unitsFor,parseQty:parseQty,fmtQty:fmtQty,rangeDays:rangeDays,CATEGORIES:CATEGORIES,bmr:bmr,targets:targets,entryNutrition:entryNutrition,totalsFor:totalsFor,addDays:addDays,lastDays:lastDays,FOODS:FOODS,fmtDate:fmtDate};
 </script>
 
 <script id="app">
@@ -910,42 +933,55 @@ if (typeof module !== 'undefined') module.exports = {CARBS:CARBS,workoutKcalFor:
   }
 
   function barHtml(pct, color){ return '<div class="bar"><i style="width:'+Math.min(100,pct)+'%;background:'+color+'"></i></div>'; }
-  function tileHtml(label, value, unit, cls, extra){
-    return '<div class="tile'+(cls?' '+cls:'')+'"><span class="tl">'+label+'</span><b>'+value+'</b><span class="tu">'+unit+'</span>'+(extra||'')+'</div>';
+  function kpiChip(st){
+    return st==='over' ? '<span class="pill over">OVER</span>' : st==='near' ? '<span class="pill near">NEARLY THERE</span>' : '<span class="pill good">DEFICIT</span>';
   }
   function renderSummary(){
     var t = totalsFor(state.entries, viewDate), g = targets(state.settings), sub = !!state.settings.netWorkouts;
-    var wk = workoutKcalFor(state.workouts, viewDate), bd = dayBudget(t.kcal, wk, g.kcal, sub), isOver = bd.state==='over';
-    var pLeft = g.protein - t.protein, html = '';
-    var kColor = isOver ? 'var(--warn)' : bd.state==='near' ? 'var(--caution)' : 'var(--kcal)';
-    var pill = isOver ? '<span class="pill over">OVER</span>' : bd.state==='near' ? '<span class="pill near">NEARLY THERE</span>' : '';
-    html += '<div class="tiles">'
-      + tileHtml('Food', fmt(bd.food), 'kcal eaten')
-      + '<span class="op" aria-hidden="true">−</span>'
-      + tileHtml('Workout', sub ? (bd.burn>0 ? '−'+fmt(bd.burn) : '0') : fmt(Math.round(wk)), sub ? (bd.burn>0 ? 'kcal burned' : 'none logged') : 'not subtracted', 'burn')
-      + '<span class="op" aria-hidden="true">=</span>'
-      + tileHtml('Net', fmt(bd.net), 'of '+fmt(g.kcal)+' kcal', 'net '+bd.state, pill)
+    var wk = workoutKcalFor(state.workouts, viewDate), k = calorieKpis(t.kcal, wk, g.kcal, sub), bd = dayBudget(t.kcal, wk, g.kcal, sub);
+    var none = t.count===0, isOver = k.netState==='over', html = '';
+    var fCls = none ? '' : k.foodState==='over' ? 'over' : k.foodState==='near' ? 'near' : 'good';
+    var nCls = none ? '' : k.netState==='over' ? 'over' : k.netState==='near' ? 'near' : 'good';
+    var kColor = isOver ? 'var(--warn)' : k.netState==='near' ? 'var(--caution)' : 'var(--kcal)';
+    // KPI 1: food intake against the calorie threshold (deficit or over)
+    html += '<div class="kpis">'
+      + '<div class="kpi '+fCls+'"><span class="kl">Food vs target</span>'
+      + '<span class="kv">'+(none ? '–' : (k.foodDelta>0 ? '+' : k.foodDelta<0 ? '−' : '')+fmt(Math.abs(k.foodDelta)))+'</span>'
+      + '<span class="ku">'+(none ? 'nothing logged yet' : k.foodDelta>0 ? 'kcal over target' : 'kcal under target')+'</span>'
+      + (none ? '' : kpiChip(k.foodState))
+      + '<span class="ku" style="margin-top:6px">Ate '+fmt(k.food)+' · target '+fmt(g.kcal)+'</span></div>'
+    // KPI 2: adjusted total after the workout
+      + '<div class="kpi '+nCls+'"><span class="kl">Adjusted total</span>'
+      + '<span class="kv">'+(none ? '–' : fmt(k.net))+'</span>'
+      + '<span class="ku">'+(none ? 'nothing logged yet' : sub ? 'kcal after workout' : 'kcal (workout not subtracted)')+'</span>'
+      + (none ? '' : kpiChip(k.netState))
+      + '<span class="ku" style="margin-top:6px">'+(none ? 'Target '+fmt(g.kcal) : k.left>=0 ? fmt(k.left)+' kcal left of '+fmt(g.kcal) : fmt(-k.left)+' kcal over '+fmt(g.kcal))+'</span></div>'
       + '</div>';
-    html += '<div class="meter"><div class="bar kb" role="img" aria-label="Food '+fmt(bd.food)+', workout '+fmt(bd.burn)+', net '+fmt(bd.net)+' of '+fmt(g.kcal)+' kilocalories">'
+    // how the two relate: food - workout = net
+    html += '<div class="eq"><span>Food <b>'+fmt(k.food)+'</b></span><span class="op" aria-hidden="true">−</span>'
+      + '<span class="burn">Workout <b>'+(sub ? fmt(k.burn) : fmt(Math.round(wk)))+'</b>'+(sub ? '' : ' (not subtracted)')+'</span><span class="op" aria-hidden="true">=</span>'
+      + '<span>Net <b>'+fmt(k.net)+'</b></span></div>';
+    html += '<div class="meter" style="margin-top:6px"><div class="bar kb" role="img" aria-label="Food '+fmt(k.food)+', workout '+fmt(k.burn)+', net '+fmt(k.net)+' of '+fmt(g.kcal)+' kilocalories">'
       + '<i style="width:'+bd.solidPct+'%;background:'+kColor+'"></i>'
       + (bd.burnPct>0 ? '<i class="burnseg" style="width:'+bd.burnPct+'%"></i>' : '')
       + '<b class="tick" style="left:calc('+bd.tickPct+'% - 2px)" title="Target"></b></div>'
       + '<div class="legend"><span><i class="sw net" style="background:'+kColor+'"></i>Net calories</span>'
       + (bd.burn>0 ? '<span><i class="sw burn"></i>Workout burned</span>' : '')
-      + '<span><i class="sw tick"></i>Target '+fmt(g.kcal)+'</span></div>'
-      + '<div class="sub'+(isOver?' over strong':'')+'" style="margin-top:6px">'
-      + (isOver ? fmt(-bd.left)+' kcal over'+(sub?' your net target':' target') : fmt(bd.left)+' kcal left to eat'+(bd.state==='near'?' · close to your target':'')) + '</div></div>';
-    html += '<div class="meter"><div class="top"><span class="big">'+fmt(t.protein,1)+' g</span><span class="sub">of '+fmt(g.protein)+' g protein</span></div>'
+      + '<span><i class="sw tick"></i>Target '+fmt(g.kcal)+'</span></div></div>';
+    // protein and carbs
+    var pLeft = g.protein - t.protein, cbar = calorieBar(t.carbs, g.carbs), cOver = cbar.state==='over';
+    html += '<div class="macros">'
+      + '<div class="mac"><span class="kl">Protein</span><span class="kv">'+fmt(t.protein,1)+' g</span><span class="ku">of '+fmt(g.protein)+' g</span>'
       + barHtml(100*t.protein/g.protein, 'var(--prot)')
-      + '<div class="sub">'+(pLeft>0 ? fmt(pLeft,1)+' g to go' : 'Protein target reached')+'</div></div>';
-    var cbar = calorieBar(t.carbs, g.carbs), cOver = cbar.state==='over';
-    html += '<div class="meter"><div class="top"><span class="big">'+fmt(t.carbs)+' g</span><span class="sub">of '+fmt(g.carbs)+' g carbs</span></div>'
-      + '<div class="bar kb" role="img" aria-label="'+fmt(t.carbs)+' of '+fmt(g.carbs)+' grams of carbohydrate">'
+      + '<span class="ku" style="margin-top:4px">'+(pLeft>0 ? fmt(pLeft,1)+' g to go' : 'Target reached')+'</span></div>'
+      + '<div class="mac"><span class="kl">Carbs</span><span class="kv">'+fmt(t.carbs)+' g</span><span class="ku">of '+fmt(g.carbs)+' g</span>'
+      + '<div class="bar kb" role="img" aria-label="'+fmt(t.carbs)+' of '+fmt(g.carbs)+' grams of carbohydrate" style="height:12px;border-radius:6px">'
       + '<i style="width:'+cbar.withinPct+'%;background:var(--carb)"></i>'
       + (cbar.overPct>0 ? '<i class="overseg" style="width:'+cbar.overPct+'%"></i>' : '')
       + '<b class="tick" style="left:calc('+cbar.tickPct+'% - 2px)" title="Target"></b></div>'
-      + '<div class="sub'+(cOver?' over strong':'')+'" style="margin-top:6px">'+(cOver ? fmt(Math.round(t.carbs)-g.carbs)+' g over target' : fmt(g.carbs-Math.round(t.carbs))+' g left')
-      + (t.carbsUnknown ? ' · '+t.carbsUnknown+' '+(t.carbsUnknown>1?'entries have':'entry has')+' no carb data' : '') + '</div></div>';
+      + '<span class="ku'+(cOver?' over strong':'')+'" style="margin-top:4px">'+(cOver ? fmt(Math.round(t.carbs)-g.carbs)+' g over' : fmt(g.carbs-Math.round(t.carbs))+' g left')+'</span></div>'
+      + '</div>'
+      + (t.carbsUnknown ? '<div class="note" style="margin-top:6px">'+t.carbsUnknown+' '+(t.carbsUnknown>1?'entries have':'entry has')+' no carb data, so carbs may be higher.</div>' : '');
     if (t.kcal>0 && t.kcal < CALORIE_FLOOR && viewDate<fmtDate(new Date())) html += '<div class="warnbox">You ate under '+CALORIE_FLOOR+' kcal of food. Eating this little tends to cost muscle and backfire. Check you logged everything.</div>';
     $('summary').className = 'card' + (isOver ? ' is-over' : '');
     $('summary').innerHTML = html;
