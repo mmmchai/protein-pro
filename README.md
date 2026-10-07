@@ -9,6 +9,8 @@ Single-file calorie and protein tracker. Open `index.html` in a browser (or host
 - Workout section: log boxing, strength, walking and more with minutes and intensity. Strength sessions take exercises as sets × reps @ kg and show what you lifted last time. A weekly counter tracks sessions against your goal (set in Settings). Estimated calories burned (MET-based, above resting) are subtracted from the day's food calories: Food − Workout = Net, and the calorie target applies to Net. Because workouts are counted separately, the activity level should describe the rest of your day. A setting turns this off.
 - Saved (custom) foods can be deleted. Past entries keep their numbers.
 - Entries can be edited or deleted. Daily totals, targets and a 7-day view are shown.
+- Carbs are tracked alongside calories and protein. Every built-in food has carbs per 100 g; custom foods and manual entries can include carbs. Entries without carb data are flagged rather than silently counted as zero.
+- Calories, protein and carbs targets are all editable in Settings. Clear a box or press Auto to return to the calculated value. The auto carb target is a share of the calorie target (default 40%), so it moves when calories change. Settings also show what is left over for fat.
 - Targets come from Mifflin-St Jeor BMR × activity factor, minus a deficit (default 15%), with a 1,200 kcal floor. With workouts subtracted, the default activity factor is 1.3 (day-to-day, workouts excluded). Protein defaults to 1.9 g/kg. All editable in Settings.
 - Data stays in the browser's localStorage. Use Export and Import for backups.
 - Food values are approximate per-100 g figures (USDA-style). Weigh food in the state you select, and check packaged foods against the label.

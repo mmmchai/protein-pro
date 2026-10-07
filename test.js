@@ -20,7 +20,7 @@ let n = c.entryNutrition({ kcal: 165, protein: 31 }, 150, 1);
 assert.strictEqual(n.kcal, 287.5); assert.strictEqual(n.protein, 46.5);
 // empty / bad input doesn't produce NaN
 n = c.entryNutrition({ kcal: 165, protein: 31 }, '', undefined);
-assert.deepStrictEqual(n, { kcal: 0, protein: 0 });
+assert.deepStrictEqual(n, { kcal: 0, protein: 0, carbs: 0 });
 
 // raw vs cooked of same food differ (guards against mixing them up)
 const rice = c.FOODS.find(f => f.id === 'white-rice');
@@ -157,5 +157,32 @@ assert.strictEqual(bd.net, -300); assert.strictEqual(bd.solidPct, 0); assert.ok(
 assert.strictEqual(c.dayBudget(0, 0, 1320, true).state, 'ok');
 const rd = c.rangeDays([e('2026-10-06', 100, 10, 100, 0)], '2026-10-05', '2026-10-06', [{ date: '2026-10-06', kcal: 40 }, { date: '2026-10-05', kcal: 70 }]);
 assert.deepStrictEqual(rd.map(d => d.workout), [70, 40]);
+
+// carbs data: every food/state has a value, and it is physically plausible (4 kcal/g protein + 4 kcal/g carbs, fibre and water give slack)
+c.FOODS.forEach(f => {
+  assert.ok(c.CARBS[f.id], 'no carbs for ' + f.id); assert.strictEqual(c.CARBS[f.id].length, f.forms.length, 'carb count ' + f.id);
+  f.forms.forEach(([label, k, p, cb]) => { assert.ok(cb >= 0 && cb <= 100, f.id + ' ' + label);
+    assert.ok(4*p + 4*cb <= k + 35, f.id + ' ' + label + ' macros exceed calories: ' + (4*p + 4*cb) + ' vs ' + k); });
+});
+Object.keys(c.CARBS).forEach(id => assert.ok(c.FOODS.find(f => f.id === id), 'carbs for unknown food ' + id));
+assert.strictEqual(c.FOODS.find(f => f.id === 'white-rice').forms[1][3], 28);
+assert.strictEqual(c.entryNutrition({ kcal: 130, protein: 2.7, carbs: 28 }, 200, 0).carbs, 56);
+assert.strictEqual(c.entryNutrition({ kcal: 130, protein: 2.7 }, 200, 0).carbs, 0);     // unknown carbs -> 0
+// totals carry carbs and flag entries with no carb data
+const ce = [{ date: 'x', kcal100: 130, p100: 2.7, c100: 28, grams: 100, fatTsp: 0 }, { date: 'x', kcal100: 50, p100: 1, grams: 100, fatTsp: 0 }];
+const ct = c.totalsFor(ce, 'x'); assert.strictEqual(ct.carbs, 28); assert.strictEqual(ct.carbsUnknown, 1); assert.strictEqual(ct.count, 2);
+// targets: auto, manual, and linked carbs
+let tg = c.targets(me);
+assert.deepStrictEqual([tg.kcal, tg.protein, tg.carbs], [1470, 99, 147]);              // 40% of 1470 / 4
+assert.deepStrictEqual([tg.auto.kcal, tg.auto.protein, tg.auto.carbs], [true, true, true]);
+assert.strictEqual(tg.fat, Math.round((1470 - 4*99 - 4*147)/9));
+tg = c.targets({ ...me, calTarget: 1600 });                                             // changing calories moves auto carbs
+assert.deepStrictEqual([tg.kcal, tg.protein, tg.carbs, tg.auto.kcal], [1600, 99, 160, false]);
+tg = c.targets({ ...me, calTarget: 1600, carbTarget: 120 });                            // manual carbs stays put
+assert.deepStrictEqual([tg.kcal, tg.carbs, tg.auto.carbs], [1600, 120, false]);
+tg = c.targets({ ...me, protTarget: 110, carbPct: 30 });
+assert.deepStrictEqual([tg.protein, tg.carbs, tg.kcal], [110, 110, 1470]);
+tg = c.targets({ ...me, calTarget: null, protTarget: 0, carbTarget: undefined }); assert.ok(tg.auto.kcal && tg.auto.protein && tg.auto.carbs);
+assert.ok(c.targets({ ...me, protTarget: 200, carbTarget: 300, calTarget: 1300 }).fat === 0);   // fat never negative
 
 console.log('all tests passed,', c.FOODS.length, 'foods');

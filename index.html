@@ -8,15 +8,15 @@
 <style>
 :root{
   --bg:#f6f5f2; --card:#fff; --ink:#1d2421; --muted:#667069; --line:#e3e1db;
-  --kcal:#d97a2b; --prot:#2f7d5b; --warn:#b3261e; --accent:#2f7d5b; --track:#ebe9e3; --on-accent:#fff; --caution:#e0a100; --on-warn:#fff; --burn:#14808a;
+  --kcal:#d97a2b; --prot:#2f7d5b; --warn:#b3261e; --accent:#2f7d5b; --track:#ebe9e3; --on-accent:#fff; --caution:#e0a100; --on-warn:#fff; --burn:#14808a; --carb:#5b5fc7;
   --m-breakfast:#b36b00; --m-lunch:#2b6cb0; --m-dinner:#7b4bb5; --m-snack:#c0365f; --m-other:#5c6660;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){ --bg:#141815; --card:#1d2420; --ink:#ecefec; --muted:#9aa59d; --line:#2c352f;
-    --kcal:#f0a066; --prot:#6cc79b; --warn:#ff8a80; --accent:#6cc79b; --track:#2a332d; --on-accent:#0d1410; --caution:#f2c14e; --on-warn:#2b0a07; --burn:#5ccfd6; color-scheme:dark; }
+    --kcal:#f0a066; --prot:#6cc79b; --warn:#ff8a80; --accent:#6cc79b; --track:#2a332d; --on-accent:#0d1410; --caution:#f2c14e; --on-warn:#2b0a07; --burn:#5ccfd6; --carb:#9fa3ff; color-scheme:dark; }
 }
 :root[data-theme="dark"]{ --bg:#141815; --card:#1d2420; --ink:#ecefec; --muted:#9aa59d; --line:#2c352f;
-  --kcal:#f0a066; --prot:#6cc79b; --warn:#ff8a80; --accent:#6cc79b; --track:#2a332d; --on-accent:#0d1410; --caution:#f2c14e; --on-warn:#2b0a07; --burn:#5ccfd6; color-scheme:dark; }
+  --kcal:#f0a066; --prot:#6cc79b; --warn:#ff8a80; --accent:#6cc79b; --track:#2a332d; --on-accent:#0d1410; --caution:#f2c14e; --on-warn:#2b0a07; --burn:#5ccfd6; --carb:#9fa3ff; color-scheme:dark; }
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
   padding:0 16px calc(32px + env(safe-area-inset-bottom))}
@@ -61,7 +61,7 @@ label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
 .actions{display:flex;gap:6px;margin-top:6px}
 .note{font-size:13px;color:var(--muted)}
 .warnbox{border:1px solid var(--warn);color:var(--warn);border-radius:10px;padding:8px 10px;font-size:14px;margin:8px 0}
-.week .d{display:grid;grid-template-columns:78px 1fr 1fr;gap:8px;align-items:center;font-size:13px;margin:4px 0;width:100%;min-height:28px;padding:0;border:0;background:none;text-align:left}
+.week .d{display:grid;grid-template-columns:78px 1fr 1fr 1fr;gap:8px;align-items:center;font-size:13px;margin:4px 0;width:100%;min-height:28px;padding:0;border:0;background:none;text-align:left}
 .week button.d{cursor:pointer}
 .week button.d.sel .lbl{font-weight:700;color:var(--accent)}
 .scroll{max-height:420px;overflow-y:auto}
@@ -109,6 +109,8 @@ details summary{cursor:pointer;font-weight:600;min-height:32px}
 .sw{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px}
 .sw.net{background:var(--kcal)} .sw.tick{width:3px;border-radius:0;background:var(--ink)}
 .sw.burn{background:repeating-linear-gradient(45deg,var(--burn) 0 3px,color-mix(in srgb, var(--burn) 55%, var(--card)) 3px 6px)}
+.tgtrow{display:grid;grid-template-columns:1fr auto;gap:8px}
+.tgt .note{margin-top:4px}
 .dots{display:flex;gap:6px;flex-wrap:wrap}
 .dot{width:16px;height:16px;border-radius:50%;border:2px solid var(--accent)}
 .dot.on{background:var(--accent)}
@@ -182,6 +184,8 @@ label.chk input{width:auto;min-height:0}
           <div><label for="mKcal">Calories (kcal, total)</label><input id="mKcal" type="number" inputmode="decimal" min="0" max="5000" step="any"></div>
           <div><label for="mProt">Protein (g, total)</label><input id="mProt" type="number" inputmode="decimal" min="0" max="500" step="any" placeholder="0"></div>
         </div>
+        <label for="mCarb">Carbs (g, total), optional</label>
+        <input id="mCarb" type="number" inputmode="decimal" min="0" max="1000" step="any" placeholder="leave blank if unknown">
       </div>
       <label class="chk"><input type="checkbox" id="manual"> I know the calories, enter them myself</label>
       <div class="note" id="preview" style="margin:10px 0"></div>
@@ -199,6 +203,8 @@ label.chk input{width:auto;min-height:0}
         <input id="cName" required maxlength="60">
         <label for="cServ">One serving weighs (g), optional</label>
         <input id="cServ" type="number" inputmode="decimal" min="1" max="2000" step="any" placeholder="e.g. 60. Lets you enter servings.">
+        <label for="cCarb">Carbs g per 100 g</label>
+        <input id="cCarb" type="number" inputmode="decimal" min="0" max="100" step="any" placeholder="0">
         <div class="row">
           <div><label for="cKcal">kcal per 100 g</label>
             <input id="cKcal" type="number" inputmode="decimal" min="0" max="900" step="any" required></div>
@@ -300,8 +306,28 @@ label.chk input{width:auto;min-height:0}
       </select>
       <label class="chk" style="margin-top:12px"><input type="checkbox" id="sNet"> Subtract workout calories from food calories</label>
       <div class="note" id="netNote" style="margin-top:4px"></div>
-      <label for="sProt">Protein (g per kg body weight)</label>
-      <input id="sProt" type="number" inputmode="decimal" step="0.1" min="1.2" max="3">
+      <h2 style="margin-top:18px">Daily targets</h2>
+      <div class="note">Change any target to set it yourself. Clear the box or press Auto to go back to the calculated value. Carbs follow your calorie target automatically unless you set them.</div>
+      <div class="tgt">
+        <label for="sCalT">Calories (kcal)</label>
+        <div class="tgtrow"><input id="sCalT" type="number" inputmode="numeric" min="1200" max="4000" step="10"><button type="button" class="small" id="aCal" data-auto="kcal">Auto</button></div>
+        <div class="note" id="nCal"></div>
+      </div>
+      <div class="tgt">
+        <label for="sProtT">Protein (g)</label>
+        <div class="tgtrow"><input id="sProtT" type="number" inputmode="numeric" min="40" max="300" step="1"><button type="button" class="small" id="aProt" data-auto="protein">Auto</button></div>
+        <div class="note" id="nProt"></div>
+        <label for="sProt">Auto protein: g per kg body weight</label>
+        <input id="sProt" type="number" inputmode="decimal" step="0.1" min="1.2" max="3">
+      </div>
+      <div class="tgt">
+        <label for="sCarbT">Carbs (g)</label>
+        <div class="tgtrow"><input id="sCarbT" type="number" inputmode="numeric" min="20" max="600" step="1"><button type="button" class="small" id="aCarb" data-auto="carbs">Auto</button></div>
+        <div class="note" id="nCarb"></div>
+        <label for="sCarbPct">Auto carbs: share of calories (%)</label>
+        <input id="sCarbPct" type="number" inputmode="numeric" min="5" max="70" step="1">
+      </div>
+      <div class="note" id="fatNote" style="margin-top:10px"></div>
       <div class="note" id="targetInfo" style="margin-top:10px"></div>
       <div id="importBox" class="warnbox hidden"></div>
       <div class="row" style="margin-top:12px">
@@ -462,6 +488,30 @@ var FOODS = [
   {cat:'Sauces, sweets & drinks', id:'almond-milk', name:'Almond milk (unsweetened)', forms:[['As is',15,0.6]]},
   {cat:'Sauces, sweets & drinks', id:'oat-milk', name:'Oat milk', forms:[['As is',45,1]]}
 ];
+// Carbohydrate g per 100 g, one value per cooking/state option, in the same order as each food's forms.
+var CARBS = {
+  'chicken-breast':[0,0,0,0],'chicken-thigh':[0,0,0],'beef-mince':[0,0],'beef-steak':[0,0],'pork-loin':[0,0],'salmon':[0,0],'white-fish':[0,0],
+  'tuna-can':[0],'shrimp':[0.2,0.2],'turkey-breast':[0,0],'ham-lean':[1.5],'tilapia':[0,0],'scallops':[3.2,5],'sardines':[0],
+  'egg':[0.7,1.1,0.8],'egg-white':[0.7,0.7],'greek-yogurt':[3.6],'cottage-cheese':[3.4],'milk':[4.8],'cheddar':[1.3],'mozzarella':[2.2],
+  'whey':[6],'tofu':[2.8],'skyr':[4],'tempeh':[7.6],'seitan':[4],'soy-milk':[1.7],'feta':[4],'parmesan':[3.2],
+  'shake-rtd':[2],'shake-water':[1],'shake-milk':[6],'protein-bar':[32],
+  'white-rice':[79,28],'brown-rice':[76,26],'oats':[66,12],'pasta':[75,31],'quinoa':[64,21],'bread-wholewheat':[41],'bread-white':[49],
+  'potato':[17,20,21],'sweet-potato':[20,18,21],'couscous':[77,23],'soba':[21],'rice-noodles':[25],'bulgur':[19],'barley':[28],
+  'tortilla-flour':[49],'bagel':[49],'granola':[64],'cornflakes':[84],'rice-cake':[81],
+  'lentils':[63,20],'chickpeas':[27],'black-beans':[24],'edamame':[9],'kidney-beans':[23],'white-beans':[25],'hummus':[14],
+  'apple':[14],'banana':[23],'orange':[12],'blueberries':[14],'strawberries':[8],'grapes':[18],'mango':[15],'pineapple':[13],'kiwi':[15],'pear':[15],
+  'watermelon':[8],'raspberries':[12],'cherries':[16],'peach':[10],'plum':[11],'grapefruit':[11],'papaya':[11],'pomegranate':[19],'cantaloupe':[8],
+  'dragon-fruit':[13],'dates':[75],'raisins':[79],
+  'broccoli':[7,7],'spinach':[3.6,3.8],'carrot':[10,8],'tomato':[4],'cucumber':[3.6],'bell-pepper':[6],'zucchini':[3.1,2.7],'mushrooms':[3.3,5],
+  'bok-choy':[2.2,1.8],'napa-cabbage':[3.2,3],'cabbage':[5.8,5.5],'cauliflower':[5,4.1],'kale':[4.4,5.6],'lettuce':[3.3],'asparagus':[3.9,4.1],
+  'green-beans':[7,7.9],'snow-peas':[7.5,7.5],'green-peas':[15],'sweetcorn':[21],'brussels-sprouts':[9,8],'beetroot':[10,10],'eggplant':[6,8.7],
+  'pumpkin':[6.5,5],'onion':[9,10],'garlic':[33],'celery':[3],'bean-sprouts':[6],'kimchi':[2.4],
+  'gai-lan':[3.8,3.3],'yu-choy':[2.2,2.4],'ong-choy':[3.1,3],'yin-choy':[4,3.7],'gai-choy':[4.7,2.9],'gau-choy':[4.4],
+  'avocado':[8.5],'almonds':[22],'peanut-butter':[20],'olive-oil':[0],'walnuts':[14],'cashews':[30],'peanuts':[16],'chia':[42],'flax':[29],
+  'sunflower-seeds':[20],'tahini':[21],'butter':[0.1],'mayo':[0.6],
+  'soy-sauce':[4.9],'ketchup':[27],'honey':[82],'sugar':[100],'dark-choc':[46],'orange-juice':[10],'cola':[10.6],'coffee':[0],'almond-milk':[0.6],'oat-milk':[6.7]
+};
+FOODS.forEach(function(f){ var c = CARBS[f.id]; f.forms.forEach(function(x,i){ x[3] = c ? c[i] : undefined; }); });
 var CATEGORIES = ['My foods','Meat & fish','Protein shakes & bars','Eggs, dairy & plant protein','Grains & starch','Legumes','Vegetables','Fruit','Fats & nuts','Sauces, sweets & drinks'];
 
 // Typical sizes in grams, as [label, grams, onlyFormIndex?]. Estimates; weigh in grams for accuracy.
@@ -625,19 +675,36 @@ function lastLift(workouts, name, beforeDate, excludeId){
   return best;
 }
 function bmr(s){ return 10*s.kg + 6.25*s.cm - 5*s.age - 161; }   // Mifflin-St Jeor, female
+// Calories and protein come from your stats unless you set them. Carbs default to a share of whatever
+// the calorie target is, so changing calories moves the auto carb target with it.
 function targets(s){
   var tdee = bmr(s) * s.activity;
-  var kcal = Math.max(CALORIE_FLOOR, Math.round(tdee*(1 - s.deficitPct/100)/10)*10);
-  return {bmr:Math.round(bmr(s)), tdee:Math.round(tdee), kcal:kcal, protein:Math.round(s.kg*s.proteinPerKg)};
+  var autoKcal = Math.max(CALORIE_FLOOR, Math.round(tdee*(1 - s.deficitPct/100)/10)*10);
+  var kcal = s.calTarget>0 ? Math.round(s.calTarget) : autoKcal;
+  var autoProtein = Math.round(s.kg*s.proteinPerKg);
+  var protein = s.protTarget>0 ? Math.round(s.protTarget) : autoProtein;
+  var pct = s.carbPct>0 ? s.carbPct : 40;
+  var autoCarbs = Math.round(kcal*pct/100/4);
+  var carbs = s.carbTarget>0 ? Math.round(s.carbTarget) : autoCarbs;
+  var fatKcal = kcal - 4*protein - 4*carbs;
+  return {bmr:Math.round(bmr(s)), tdee:Math.round(tdee), kcal:kcal, protein:protein, carbs:carbs,
+          fat:Math.max(0, Math.round(fatKcal/9)), fatKcal:fatKcal, fatPct:Math.round(100*fatKcal/kcal),
+          autoKcal:autoKcal, autoProtein:autoProtein, autoCarbs:autoCarbs,
+          auto:{kcal:!(s.calTarget>0), protein:!(s.protTarget>0), carbs:!(s.carbTarget>0)}};
 }
 function entryNutrition(per100, grams, fatTsp){
   grams = Number(grams)||0; fatTsp = Number(fatTsp)||0;
-  return {kcal: per100.kcal*grams/100 + fatTsp*KCAL_PER_TSP_FAT, protein: per100.protein*grams/100};
+  return {kcal: per100.kcal*grams/100 + fatTsp*KCAL_PER_TSP_FAT, protein: per100.protein*grams/100, carbs: (Number(per100.carbs)||0)*grams/100};
 }
-function entryTotals(e){ return entryNutrition({kcal:e.kcal100, protein:e.p100}, e.grams, e.fatTsp); }
+// Entries logged before carbs existed (or custom foods without carbs) have no c100: counted as 0, flagged as unknown.
+function entryTotals(e){ return entryNutrition({kcal:e.kcal100, protein:e.p100, carbs:e.c100}, e.grams, e.fatTsp); }
 function totalsFor(entries, date){
-  var t = {kcal:0, protein:0, count:0};
-  entries.forEach(function(e){ if(e.date===date){ var n=entryTotals(e); t.kcal+=n.kcal; t.protein+=n.protein; t.count++; } });
+  var t = {kcal:0, protein:0, carbs:0, carbsUnknown:0, count:0};
+  entries.forEach(function(e){
+    if (e.date!==date) return;
+    var n = entryTotals(e); t.kcal += n.kcal; t.protein += n.protein; t.carbs += n.carbs; t.count++;
+    if (e.c100===undefined || e.c100===null) t.carbsUnknown++;
+  });
   return t;
 }
 function addDays(dateStr, n){
@@ -648,7 +715,7 @@ function fmtDate(d){
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 }
 function lastDays(entries, endDate, n){
-  var out=[]; for(var i=n-1;i>=0;i--){ var d=addDays(endDate,-i); var t=totalsFor(entries,d); out.push({date:d,kcal:t.kcal,protein:t.protein,count:t.count}); }
+  var out=[]; for(var i=n-1;i>=0;i--){ var d=addDays(endDate,-i); var t=totalsFor(entries,d); out.push({date:d,kcal:t.kcal,protein:t.protein,carbs:t.carbs,count:t.count}); }
   return out;
 }
 function workoutKcalFor(workouts, date){
@@ -656,7 +723,7 @@ function workoutKcalFor(workouts, date){
 }
 function rangeDays(entries, start, end, workouts){   // inclusive, at most 366 days, ISO date strings
   var out=[], d=start, n=0;
-  while (d<=end && n<366){ var t=totalsFor(entries,d); out.push({date:d,kcal:t.kcal,protein:t.protein,count:t.count,workout:workoutKcalFor(workouts,d)}); d=addDays(d,1); n++; }
+  while (d<=end && n<366){ var t=totalsFor(entries,d); out.push({date:d,kcal:t.kcal,protein:t.protein,carbs:t.carbs,count:t.count,workout:workoutKcalFor(workouts,d)}); d=addDays(d,1); n++; }
   return out;
 }
 // Food minus workout (when subtracting is on) against the target. Over means rounded net is above target.
@@ -665,14 +732,14 @@ function dayBudget(food, burn, target, subtract){
   return {food:f, burn:b, net:n, left:target - n, state: n > target ? 'over' : n >= 0.9*target ? 'near' : 'ok',
           solidPct:100*Math.max(0, n)/max, burnPct:100*Math.min(b, f)/max, tickPct:100*target/max};
 }
-if (typeof module !== 'undefined') module.exports = {workoutKcalFor:workoutKcalFor,dayBudget:dayBudget,WORKOUT_TYPES:WORKOUT_TYPES,INTENSITIES:INTENSITIES,workoutKcal:workoutKcal,weekStart:weekStart,weekSummary:weekSummary,lastLift:lastLift,calorieBar:calorieBar,MEALS:MEALS,mealForHour:mealForHour,entryKey:entryKey,frequentFoods:frequentFoods,UNITS:UNITS,unitsFor:unitsFor,parseQty:parseQty,fmtQty:fmtQty,rangeDays:rangeDays,CATEGORIES:CATEGORIES,bmr:bmr,targets:targets,entryNutrition:entryNutrition,totalsFor:totalsFor,addDays:addDays,lastDays:lastDays,FOODS:FOODS,fmtDate:fmtDate};
+if (typeof module !== 'undefined') module.exports = {CARBS:CARBS,workoutKcalFor:workoutKcalFor,dayBudget:dayBudget,WORKOUT_TYPES:WORKOUT_TYPES,INTENSITIES:INTENSITIES,workoutKcal:workoutKcal,weekStart:weekStart,weekSummary:weekSummary,lastLift:lastLift,calorieBar:calorieBar,MEALS:MEALS,mealForHour:mealForHour,entryKey:entryKey,frequentFoods:frequentFoods,UNITS:UNITS,unitsFor:unitsFor,parseQty:parseQty,fmtQty:fmtQty,rangeDays:rangeDays,CATEGORIES:CATEGORIES,bmr:bmr,targets:targets,entryNutrition:entryNutrition,totalsFor:totalsFor,addDays:addDays,lastDays:lastDays,FOODS:FOODS,fmtDate:fmtDate};
 </script>
 
 <script id="app">
 (function(){
   if (typeof document === 'undefined') return;
   var KEY = 'proteinpro.v1';
-  var DEFAULTS = {kg:52, cm:160, age:33, activity:1.3, deficitPct:15, proteinPerKg:1.9, workoutGoal:3, netWorkouts:true};
+  var DEFAULTS = {kg:52, cm:160, age:33, activity:1.3, deficitPct:15, proteinPerKg:1.9, workoutGoal:3, netWorkouts:true, calTarget:null, protTarget:null, carbTarget:null, carbPct:40};
   // Older saved settings had workouts built into the activity level (1.45). Now that workouts are
   // subtracted separately, use a day-to-day level so they are not counted twice.
   function mergeSettings(saved){
@@ -707,13 +774,23 @@ if (typeof module !== 'undefined') module.exports = {workoutKcalFor:workoutKcalF
   function totalsText(e){ var n = entryTotals(e); return fmt(n.kcal)+' kcal · '+fmt(n.protein,1)+' g protein'; }
   function restoreEntry(e){ state.entries.push(e); persist({months:[e.date.slice(0,7)]}); renderAll(); }
   function cleanList(a){ return Array.isArray(a) ? a.filter(function(x){ return x && typeof x.name==='string'; }) : []; }
+  // Fill in carbs on entries logged before carbs existed, from the food list (same name and state).
+  function carbsLookup(name, form){
+    var f = allFoods().filter(function(x){ return x.name===name; })[0]; if (!f) return undefined;
+    var i = f.forms.findIndex(function(x){ return x[0]===form; }); return i<0 ? undefined : f.forms[i][3];
+  }
+  function finalizeState(){
+    [state.entries, state.shortlist].forEach(function(list){ list.forEach(function(e){
+      if ((e.c100===undefined || e.c100===null) && !e.manual){ var c = carbsLookup(e.name, e.form); if (c!==undefined) e.c100 = c; }
+    }); });
+  }
   function cleanWorkouts(a){ return Array.isArray(a) ? a.filter(function(w){ return w && typeof w.date==='string' && typeof w.type==='string'; }) : []; }
 
   // ---------- persistence ----------
   function localLoad(){
     try{
       var s = JSON.parse(localStorage.getItem(KEY));
-      if (s && Array.isArray(s.entries)) state = {settings:mergeSettings(s.settings), customFoods:cleanList(s.customFoods), shortlist:cleanList(s.shortlist), entries:s.entries, workouts:cleanWorkouts(s.workouts)};
+      if (s && Array.isArray(s.entries)) state = {settings:mergeSettings(s.settings), customFoods:cleanList(s.customFoods), shortlist:cleanList(s.shortlist), entries:s.entries, workouts:cleanWorkouts(s.workouts)}; finalizeState();
     }catch(e){}
   }
   function localSave(){ try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){ setMsg('Could not save: browser storage is unavailable.', true); } }
@@ -733,17 +810,18 @@ if (typeof module !== 'undefined') module.exports = {workoutKcalFor:workoutKcalF
       if (d.id==='settings') state.settings = mergeSettings(v.settings), state.customFoods = cleanList(v.customFoods), state.shortlist = cleanList(v.shortlist);
       else if (/^m-\d{4}-\d{2}$/.test(d.id) && Array.isArray(v.entries)){ knownMonths[d.id.slice(2)] = 1; entries = entries.concat(v.entries); workouts = workouts.concat(cleanWorkouts(v.workouts)); }
     });
-    state.entries = entries; state.workouts = workouts;
+    state.entries = entries; state.workouts = workouts; finalizeState();
   }
+  function plain(o){ return JSON.parse(JSON.stringify(o)); }   // drops undefined fields before saving
   var queue = Promise.resolve();
   // what: {settings:bool, months:['YYYY-MM',...]}
   function persist(what){
     if (!store){ localSave(); return; }
     var ops = [];
-    if (what.settings) ops.push(function(){ return store.db.doc(store.base+'/settings').set({settings:state.settings, customFoods:state.customFoods, shortlist:state.shortlist}); });
+    if (what.settings) ops.push(function(){ return store.db.doc(store.base+'/settings').set(plain({settings:state.settings, customFoods:state.customFoods, shortlist:state.shortlist})); });
     (what.months||[]).forEach(function(m){
       knownMonths[m] = 1;
-      ops.push(function(){ return store.db.doc(store.base+'/m-'+m).set({entries:state.entries.filter(function(e){ return e.date.slice(0,7)===m; }), workouts:state.workouts.filter(function(w){ return w.date.slice(0,7)===m; })}); });
+      ops.push(function(){ return store.db.doc(store.base+'/m-'+m).set(plain({entries:state.entries.filter(function(e){ return e.date.slice(0,7)===m; }), workouts:state.workouts.filter(function(w){ return w.date.slice(0,7)===m; })})); });
     });
     queue = queue.then(function(){ return Promise.all(ops.map(function(f){ return f(); })); })
       .then(function(){ if (saveErr){ saveErr = false; setMsg(''); } })
@@ -755,7 +833,7 @@ if (typeof module !== 'undefined') module.exports = {workoutKcalFor:workoutKcalF
   // ---------- helpers ----------
   function esc(s){ return String(s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
   function allFoods(){
-    return FOODS.concat(state.customFoods.map(function(c){ return {cat:'My foods', id:c.id, name:c.name, forms:[['As is',c.kcal,c.protein]], custom:true, servingG:c.servingG}; }));
+    return FOODS.concat(state.customFoods.map(function(c){ return {cat:'My foods', id:c.id, name:c.name, forms:[['As is',c.kcal,c.protein,c.carbs]], custom:true, servingG:c.servingG}; }));
   }
   function findFood(id){ return allFoods().filter(function(f){ return f.id===id; })[0]; }
   function fmt(n,d){ return Number(n).toLocaleString(undefined,{maximumFractionDigits:d||0}); }
@@ -815,7 +893,7 @@ if (typeof module !== 'undefined') module.exports = {workoutKcalFor:workoutKcalF
   function currentPer100(){
     var f = findFood($('food').value); if(!f) return null;
     var x = f.forms[Number($('cook').value)||0]; if(!x) return null;
-    return {food:f, form:x[0], kcal:x[1], protein:x[2]};
+    return {food:f, form:x[0], kcal:x[1], protein:x[2], carbs:x[3]};
   }
   function currentGrams(){
     var q = parseQty($('amount').value), u = currentUnit();
@@ -827,8 +905,8 @@ if (typeof module !== 'undefined') module.exports = {workoutKcalFor:workoutKcalF
     var p = currentPer100(), g = currentGrams(), u = currentUnit();
     if (!p){ $('preview').textContent=''; return; }
     var n = entryNutrition(p, g, $('fat').value);
-    $('preview').textContent = (g>0 ? (u?'≈'+fmt(g,1)+' g (typical size) · ':'')+fmt(n.kcal)+' kcal · '+fmt(n.protein,1)+' g protein' : 'Enter an amount')
-      + '  (per 100 g: '+fmt(p.kcal)+' kcal, '+fmt(p.protein,1)+' g protein)';
+    $('preview').textContent = (g>0 ? (u?'≈'+fmt(g,1)+' g (typical size) · ':'')+fmt(n.kcal)+' kcal · '+fmt(n.protein,1)+' g protein · '+(p.carbs===undefined?'carbs unknown':fmt(n.carbs,1)+' g carbs') : 'Enter an amount')
+      + '  (per 100 g: '+fmt(p.kcal)+' kcal, '+fmt(p.protein,1)+' g protein'+(p.carbs===undefined?'':', '+fmt(p.carbs,1)+' g carbs')+')';
   }
 
   function barHtml(pct, color){ return '<div class="bar"><i style="width:'+Math.min(100,pct)+'%;background:'+color+'"></i></div>'; }
@@ -860,6 +938,14 @@ if (typeof module !== 'undefined') module.exports = {workoutKcalFor:workoutKcalF
     html += '<div class="meter"><div class="top"><span class="big">'+fmt(t.protein,1)+' g</span><span class="sub">of '+fmt(g.protein)+' g protein</span></div>'
       + barHtml(100*t.protein/g.protein, 'var(--prot)')
       + '<div class="sub">'+(pLeft>0 ? fmt(pLeft,1)+' g to go' : 'Protein target reached')+'</div></div>';
+    var cbar = calorieBar(t.carbs, g.carbs), cOver = cbar.state==='over';
+    html += '<div class="meter"><div class="top"><span class="big">'+fmt(t.carbs)+' g</span><span class="sub">of '+fmt(g.carbs)+' g carbs</span></div>'
+      + '<div class="bar kb" role="img" aria-label="'+fmt(t.carbs)+' of '+fmt(g.carbs)+' grams of carbohydrate">'
+      + '<i style="width:'+cbar.withinPct+'%;background:var(--carb)"></i>'
+      + (cbar.overPct>0 ? '<i class="overseg" style="width:'+cbar.overPct+'%"></i>' : '')
+      + '<b class="tick" style="left:calc('+cbar.tickPct+'% - 2px)" title="Target"></b></div>'
+      + '<div class="sub'+(cOver?' over strong':'')+'" style="margin-top:6px">'+(cOver ? fmt(Math.round(t.carbs)-g.carbs)+' g over target' : fmt(g.carbs-Math.round(t.carbs))+' g left')
+      + (t.carbsUnknown ? ' · '+t.carbsUnknown+' '+(t.carbsUnknown>1?'entries have':'entry has')+' no carb data' : '') + '</div></div>';
     if (t.kcal>0 && t.kcal < CALORIE_FLOOR && viewDate<fmtDate(new Date())) html += '<div class="warnbox">You ate under '+CALORIE_FLOOR+' kcal of food. Eating this little tends to cost muscle and backfire. Check you logged everything.</div>';
     $('summary').className = 'card' + (isOver ? ' is-over' : '');
     $('summary').innerHTML = html;
@@ -868,7 +954,7 @@ if (typeof module !== 'undefined') module.exports = {workoutKcalFor:workoutKcalF
     return e.manual ? 'Entered manually'
       : esc(e.form)+' · '+(e.unit ? fmtQty(e.qty)+' × '+esc(e.unit)+' (≈'+fmt(e.grams,1)+' g)' : fmt(e.grams,1)+' g')+(e.fatTsp>0?' · +'+fmt(e.fatTsp,1)+' tsp oil':'');
   }
-  function numsHtml(e){ var n = entryTotals(e); return '<div class="nums"><b>'+fmt(n.kcal)+'</b> kcal<br>'+fmt(n.protein,1)+' g P</div>'; }
+  function numsHtml(e){ var n = entryTotals(e); return '<div class="nums"><b>'+fmt(n.kcal)+'</b> kcal<br>'+fmt(n.protein,1)+' g P<br>'+((e.c100===undefined||e.c100===null)?'C –':fmt(n.carbs)+' g C')+'</div>'; }
   function entryRow(e){
     var pinned = state.shortlist.some(function(t){ return t.key===entryKey(e); });
     var acts = pendingDel===e.id
@@ -884,9 +970,9 @@ if (typeof module !== 'undefined') module.exports = {workoutKcalFor:workoutKcalF
     groups.forEach(function(g){
       var items = list.filter(function(e){ return g[0]==='other' ? !MEALS.some(function(m){ return m[0]===e.meal; }) : e.meal===g[0]; });
       if (!items.length && g[0]==='other') return;
-      var k = 0, p = 0; items.forEach(function(e){ var n = entryTotals(e); k += n.kcal; p += n.protein; });
+      var k = 0, p = 0, cb = 0, unk = false; items.forEach(function(e){ var n = entryTotals(e); k += n.kcal; p += n.protein; cb += n.carbs; if (e.c100===undefined || e.c100===null) unk = true; });
       html += '<div class="mealgroup" data-m="'+g[0]+'"><div class="mealhead"><b>'+g[1]+'</b><span>'
-        + (items.length ? fmt(k)+' kcal · '+fmt(p,1)+' g protein' : 'nothing yet') + '</span></div>'
+        + (items.length ? fmt(k)+' kcal · '+fmt(p)+' g P · '+fmt(cb)+(unk?'+':'')+' g C' : 'nothing yet') + '</span></div>'
         + (items.length ? items.map(entryRow).join('')
            : '<div class="mealempty"><span>No '+g[1].toLowerCase()+' logged</span><button type="button" class="small" data-mealadd="'+g[0]+'">Add</button></div>')
         + '</div>';
@@ -905,6 +991,7 @@ if (typeof module !== 'undefined') module.exports = {workoutKcalFor:workoutKcalF
   var suggestions = [];
   function templateOf(e){
     var t = {id:'s'+Date.now()+Math.random().toString(36).slice(2,5), key:entryKey(e), name:e.name, form:e.form, kcal100:e.kcal100, p100:e.p100, grams:e.grams, fatTsp:e.fatTsp||0};
+    if (e.c100!==undefined && e.c100!==null) t.c100 = e.c100;
     if (e.manual) t.manual = true;
     if (e.unit){ t.unit = e.unit; t.qty = e.qty; }
     return t;
@@ -931,6 +1018,7 @@ if (typeof module !== 'undefined') module.exports = {workoutKcalFor:workoutKcalF
     if (!ready){ setMsg('Still loading your log. Try again in a moment.', true); return; }
     var rec = {id:'e'+Date.now()+Math.random().toString(36).slice(2,6), date:viewDate, meal:currentMeal,
       name:t.name, form:t.form, kcal100:t.kcal100, p100:t.p100, grams:t.grams, fatTsp:t.fatTsp||0};
+    if (t.c100!==undefined && t.c100!==null) rec.c100 = t.c100;
     if (t.manual) rec.manual = true;
     if (t.unit){ rec.unit = t.unit; rec.qty = t.qty; }
     state.entries.push(rec); persist({months:[rec.date.slice(0,7)]}); renderAll();
@@ -958,7 +1046,7 @@ if (typeof module !== 'undefined') module.exports = {workoutKcalFor:workoutKcalF
       var acts = pendingFoodDel===c.id
         ? '<button type="button" class="small danger" data-fdok="'+esc(c.id)+'">Yes, delete</button><button type="button" class="small" data-fdno="1">Keep</button>'
         : '<button type="button" class="small danger" data-fd="'+esc(c.id)+'">Delete</button>';
-      return '<div class="entry"><div class="main"><div class="name">'+esc(c.name)+'</div><div class="meta">'+fmt(c.kcal)+' kcal, '+fmt(c.protein,1)+' g protein per 100 g'
+      return '<div class="entry"><div class="main"><div class="name">'+esc(c.name)+'</div><div class="meta">'+fmt(c.kcal)+' kcal, '+fmt(c.protein,1)+' g protein, '+(c.carbs===undefined?'carbs not set':fmt(c.carbs,1)+' g carbs')+' per 100 g'
         +(c.servingG>0?' · serving '+fmt(c.servingG,1)+' g':'')+'</div>'
         +(pendingFoodDel===c.id?'<div class="note">Delete this food? Past log entries keep their numbers.</div>':'')+'</div><div style="display:flex;gap:6px">'+acts+'</div></div>';
     }).join('') : '<div class="note">No saved foods yet. Foods you add below appear here.</div>';
@@ -1107,15 +1195,17 @@ if (typeof module !== 'undefined') module.exports = {workoutKcalFor:workoutKcalF
     var logged = days.filter(function(d){ return d.count; });
     $('rangeNote').textContent = days.length+' day'+(days.length>1?'s':'')+(days.length===366?' (max)':'');
     var shown = $('hideEmpty').checked ? logged : days;
-    $('week').innerHTML = '<div class="d note"><span></span><span>'+(sub?'net kcal':'kcal')+'</span><span>protein</span></div>' + (shown.length ? shown.map(function(d){
+    $('week').innerHTML = '<div class="d note"><span></span><span>'+(sub?'net kcal':'kcal')+'</span><span>protein</span><span>carbs</span></div>' + (shown.length ? shown.map(function(d){
       var lbl = new Date(d.date+'T00:00').toLocaleDateString(undefined,{weekday:'short', day:'numeric', month:'short'});
       return '<button type="button" class="d'+(d.date===viewDate?' sel':'')+'" data-day="'+d.date+'"><span class="lbl">'+lbl+'</span>'
         + '<div class="b"><i style="width:'+Math.min(100,100*Math.max(0,d.net)/g.kcal)+'%;background:'+(Math.round(d.net)>g.kcal?'var(--warn);opacity:.85':'var(--kcal);opacity:.55')+'"></i><span title="'+(sub&&d.workout>0?fmt(d.kcal)+' food − '+fmt(d.workout)+' workout':'')+'">'+(d.count?fmt(d.net):'–')+'</span></div>'
-        + '<div class="b"><i style="width:'+Math.min(100,100*d.protein/g.protein)+'%;background:var(--prot);opacity:.55"></i><span>'+(d.count?fmt(d.protein)+' g':'–')+'</span></div></button>';
+        + '<div class="b"><i style="width:'+Math.min(100,100*d.protein/g.protein)+'%;background:var(--prot);opacity:.55"></i><span>'+(d.count?fmt(d.protein)+' g':'–')+'</span></div>'
+        + '<div class="b"><i style="width:'+Math.min(100,100*d.carbs/g.carbs)+'%;background:var(--carb);opacity:.6"></i><span>'+(d.count?fmt(d.carbs)+' g':'–')+'</span></div></button>';
     }).join('') : '<div class="note">No entries in this period.</div>');
     $('weekAvg').textContent = logged.length ? 'Average over '+logged.length+' logged day'+(logged.length>1?'s':'')+': '
       + fmt(logged.reduce(function(a,d){return a+d.net;},0)/logged.length)+(sub?' net':'')+' kcal, '
-      + fmt(logged.reduce(function(a,d){return a+d.protein;},0)/logged.length)+' g protein. Tap a day to open it. Judge progress by the trend, not one day.' : '';
+      + fmt(logged.reduce(function(a,d){return a+d.protein;},0)/logged.length)+' g protein, '
+      + fmt(logged.reduce(function(a,d){return a+d.carbs;},0)/logged.length)+' g carbs. Tap a day to open it. Judge progress by the trend, not one day.' : '';
   }
   function targetText(){
     var t = targets(state.settings), s = state.settings;
@@ -1123,14 +1213,33 @@ if (typeof module !== 'undefined') module.exports = {workoutKcalFor:workoutKcalF
     $('netNote').textContent = s.netWorkouts
       ? (Number(s.activity)>=1.45 ? 'Your activity level already includes workouts, so subtracting them counts them twice. Choose "Mostly sedentary day-to-day" below.' : 'On: each day shows food − workout = net, and the target applies to net. Pick the activity level for the rest of your day, not counting workouts.')
       : 'Off: workouts are shown but not subtracted. Pick an activity level that includes them.';
-    return 'BMR ≈ '+t.bmr+' kcal · maintenance'+(s.netWorkouts?' without workouts':'')+' ≈ '+t.tdee+' kcal · '+net+t.kcal+' kcal & '+t.protein+' g protein'
-      + (t.kcal===CALORIE_FLOOR ? ' (held at the '+CALORIE_FLOOR+' kcal floor)' : '');
+    return 'BMR ≈ '+t.bmr+' kcal · maintenance'+(s.netWorkouts?' without workouts':'')+' ≈ '+t.tdee+' kcal · '+net+t.kcal+' kcal'
+      + (t.auto.kcal && t.kcal===CALORIE_FLOOR ? ' (held at the '+CALORIE_FLOOR+' kcal floor)' : '');
   }
   function renderSettings(){
     var s = state.settings;
     $('sKg').value=s.kg; $('sCm').value=s.cm; $('sAge').value=s.age; $('sDef').value=s.deficitPct; $('sGoal').value=s.workoutGoal;
-    $('sAct').value=String(s.activity); $('sNet').checked=!!s.netWorkouts; $('sProt').value=s.proteinPerKg;
+    $('sAct').value=String(s.activity); $('sNet').checked=!!s.netWorkouts; $('sProt').value=s.proteinPerKg; $('sCarbPct').value=s.carbPct;
+    renderTargetFields('');
     $('targetInfo').textContent = targetText();
+  }
+  // Shows the effective value of each target (auto or set by you), and what is left over for fat.
+  function renderTargetFields(except){
+    var s = state.settings, t = targets(s);
+    var cfg = [['sCalT','kcal','nCal','aCal', t.autoKcal, 'Auto: calculated from your stats'],
+               ['sProtT','protein','nProt','aProt', t.autoProtein, 'Auto: '+s.proteinPerKg+' g/kg × '+s.kg+' kg'],
+               ['sCarbT','carbs','nCarb','aCarb', t.autoCarbs, 'Auto: '+(s.carbPct>0?s.carbPct:40)+'% of '+t.kcal+' kcal, so it moves when calories change']];
+    cfg.forEach(function(c){
+      if (c[0]!==except) $(c[0]).value = t[c[1]];
+      $(c[2]).className = 'note';
+      $(c[2]).textContent = t.auto[c[1]] ? c[5] : 'Set by you (auto would be '+c[4]+')';
+      $(c[3]).classList.toggle('hidden', !!t.auto[c[1]]);
+    });
+    var minFat = Math.round(0.6*s.kg);
+    $('fatNote').className = 'note' + (t.fatKcal<=0 || t.fat < 0.5*s.kg ? ' over' : '');
+    $('fatNote').textContent = t.fatKcal<=0 ? 'Your protein and carb targets use up all your calories. Lower one of them.'
+      : 'Left over for fat: about '+t.fat+' g ('+t.fatPct+'% of calories).'
+        + (t.fat < 0.5*s.kg ? ' That is low. Very low fat can affect hormones and energy; aim for roughly '+minFat+' g or more.' : '');
   }
   function renderAll(){
     $('date').value = viewDate;
@@ -1165,6 +1274,7 @@ if (typeof module !== 'undefined') module.exports = {workoutKcalFor:workoutKcalF
       if (!nm){ setMsg('Enter a name for this food.', true); return; }
       if ($('mKcal').value==='' || !(kc>=0)){ setMsg('Enter the calories.', true); return; }
       Object.assign(rec, {name:nm, form:'Manual entry', manual:true, kcal100:kc, p100:pr, grams:100, fatTsp:0});
+      if ($('mCarb').value!=='' && Number($('mCarb').value)>=0) rec.c100 = Number($('mCarb').value);
     } else {
       var p = currentPer100(), q = parseQty($('amount').value), u = currentUnit(), fat = Number($('fat').value)||0;
       if (!p){ setMsg('Pick a food first.', true); return; }
@@ -1172,6 +1282,7 @@ if (typeof module !== 'undefined') module.exports = {workoutKcalFor:workoutKcalF
       var grams = u ? q*u.g : q;
       if (!(grams>0) || grams>5000){ setMsg('That amount looks wrong. It must be between 0 and 5,000 g.', true); return; }
       Object.assign(rec, {name:p.food.name, form:p.form, kcal100:p.kcal, p100:p.protein, grams:grams, fatTsp:fat});
+      if (p.carbs!==undefined) rec.c100 = p.carbs;
       if (u){ rec.qty = q; rec.unit = u.label; }
     }
     var wasEdit = !!editingId, before = null;
@@ -1220,10 +1331,10 @@ if (typeof module !== 'undefined') module.exports = {workoutKcalFor:workoutKcalF
       if (!en.manual && !foodNow){
         // food was deleted from the list: edit it as plain totals so nothing is changed by accident
         var tot = entryTotals(en);
-        $('manual').checked = true; $('mName').value = en.name; $('mKcal').value = Math.round(tot.kcal); $('mProt').value = Math.round(tot.protein*10)/10 || ''; applyMode();
+        $('manual').checked = true; $('mName').value = en.name; $('mKcal').value = Math.round(tot.kcal); $('mProt').value = Math.round(tot.protein*10)/10 || ''; $('mCarb').value = (en.c100===undefined||en.c100===null) ? '' : Math.round(tot.carbs*10)/10; applyMode();
         toast('"'+en.name+'" is no longer in your food list', {sub:'It opens as totals you can adjust.'});
       } else if (en.manual){
-        $('manual').checked = true; $('mName').value = en.name; $('mKcal').value = en.kcal100; $('mProt').value = en.p100||''; applyMode();
+        $('manual').checked = true; $('mName').value = en.name; $('mKcal').value = en.kcal100; $('mProt').value = en.p100||''; $('mCarb').value = (en.c100===undefined||en.c100===null) ? '' : en.c100; applyMode();
       } else {
         $('manual').checked = false; applyMode();
         var food = foodNow;
@@ -1241,10 +1352,10 @@ if (typeof module !== 'undefined') module.exports = {workoutKcalFor:workoutKcalF
   $('customForm').addEventListener('submit', function(ev){
     ev.preventDefault();
     if (!ready) return;
-    var name = $('cName').value.trim(), k = Number($('cKcal').value), p = Number($('cProt').value);
+    var name = $('cName').value.trim(), k = Number($('cKcal').value), p = Number($('cProt').value), cb = Number($('cCarb').value)||0;
     if (!name || !(k>=0) || !(p>=0)) return;
     var id = 'c'+Date.now();
-    var sv = Number($('cServ').value); state.customFoods.push({id:id, name:name, kcal:k, protein:p, servingG: sv>0 ? sv : undefined}); persist({settings:true});
+    var sv = Number($('cServ').value); state.customFoods.push({id:id, name:name, kcal:k, protein:p, carbs:cb, servingG: sv>0 ? sv : undefined}); persist({settings:true});
     $('customForm').reset(); renderFoodSelect(id); renderMyFoods();
     toast('Saved "'+name+'"', {sub:'Find it under "My foods" in the food list.'});
   });
@@ -1263,17 +1374,38 @@ if (typeof module !== 'undefined') module.exports = {workoutKcalFor:workoutKcalF
   $('today').onclick=function(){ viewDate=fmtDate(new Date()); pendingDel=null; renderAll(); };
   $('date').addEventListener('change', function(){ if($('date').value){ viewDate=$('date').value; pendingDel=null; renderAll(); } });
 
-  function readSettings(){
+  function readSettings(ev){
     // Flipping the switch also flips the matching activity level so workouts are counted exactly once.
     var wasNet = !!state.settings.netWorkouts, nowNet = $('sNet').checked;
     if (wasNet && !nowNet && $('sAct').value==='1.3') $('sAct').value = '1.45';
     if (!wasNet && nowNet && $('sAct').value==='1.45') $('sAct').value = '1.3';
     var s = {kg:Number($('sKg').value), cm:Number($('sCm').value), age:Number($('sAge').value), deficitPct:Number($('sDef').value),
-      activity:Number($('sAct').value), proteinPerKg:Number($('sProt').value), workoutGoal:Number($('sGoal').value), netWorkouts:$('sNet').checked};
+      activity:Number($('sAct').value), proteinPerKg:Number($('sProt').value), workoutGoal:Number($('sGoal').value), netWorkouts:$('sNet').checked,
+      calTarget:state.settings.calTarget, protTarget:state.settings.protTarget, carbTarget:state.settings.carbTarget, carbPct:state.settings.carbPct};
+    // Only the target box being typed in changes a target. The others show calculated values and are not read back.
+    var fid = ev && ev.target ? ev.target.id : '';
+    var tf = {sCalT:['calTarget',1200,4000,'nCal'], sProtT:['protTarget',40,300,'nProt'], sCarbT:['carbTarget',20,600,'nCarb']};
+    if (tf[fid]){
+      var raw = $(fid).value.trim(), n = Number(raw);
+      if (raw==='') s[tf[fid][0]] = null;                       // empty = back to auto
+      else if (n>=tf[fid][1] && n<=tf[fid][2]) s[tf[fid][0]] = Math.round(n);
+      else { $(tf[fid][3]).className = 'note over'; $(tf[fid][3]).textContent = 'Enter a value from '+tf[fid][1]+' to '+tf[fid][2]+'.'; return; }
+    }
+    if (fid==='sCarbPct'){ var pc = Number($('sCarbPct').value); if (!(pc>=5 && pc<=70)) return; s.carbPct = pc; }
     if (!(s.kg>=30&&s.cm>=120&&s.age>=15&&s.deficitPct>=0&&s.deficitPct<=25&&s.proteinPerKg>=1.2&&s.workoutGoal>=0&&s.workoutGoal<=14)) return;
-    state.settings = s; persistSettingsSoon(); renderSummary(); renderWeek(); renderWorkout();
+    state.settings = s; persistSettingsSoon(); renderSummary(); renderWeek(); renderWorkout(); renderEntries(); renderTargetFields(tf[fid] ? fid : '');
     $('targetInfo').textContent = targetText();
   }
+  ['sCalT','sProtT','sCarbT','sCarbPct'].forEach(function(id){ $(id).addEventListener('input', readSettings); });
+  // leaving a target box snaps it back to the value in use (e.g. after clearing it or typing something out of range)
+  ['sCalT','sProtT','sCarbT'].forEach(function(id){ $(id).addEventListener('change', function(){ renderTargetFields(''); }); });
+  $('sCarbPct').addEventListener('change', function(){ $('sCarbPct').value = state.settings.carbPct; });
+  ['aCal','aProt','aCarb'].forEach(function(id){
+    $(id).addEventListener('click', function(){
+      var key = {aCal:'calTarget', aProt:'protTarget', aCarb:'carbTarget'}[id];
+      state.settings[key] = null; persistSettingsSoon(); renderSettings(); renderSummary(); renderWeek();
+    });
+  });
   ['sKg','sCm','sAge','sDef','sAct','sProt','sGoal','sNet'].forEach(function(id){ $(id).addEventListener('input', readSettings); });
 
   $('export').onclick=async function(){
@@ -1299,7 +1431,7 @@ if (typeof module !== 'undefined') module.exports = {workoutKcalFor:workoutKcalF
       var months = {}; oldMonths.forEach(function(m){ months[m]=1; });
       state.entries.forEach(function(e){ if(e && typeof e.date==='string') months[e.date.slice(0,7)]=1; });
       state.workouts.forEach(function(w){ months[w.date.slice(0,7)]=1; });
-      persist({settings:true, months:Object.keys(months)}); renderFoodSelect(); renderAll(); toast('Backup imported');
+      finalizeState(); persist({settings:true, months:Object.keys(months)}); renderFoodSelect(); renderAll(); toast('Backup imported');
     };
     $('impNo').onclick = function(){ pendingImport = null; showImport(); };
   }
