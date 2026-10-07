@@ -8,15 +8,15 @@
 <style>
 :root{
   --bg:#f6f5f2; --card:#fff; --ink:#1d2421; --muted:#667069; --line:#e3e1db;
-  --kcal:#d97a2b; --prot:#2f7d5b; --warn:#b3261e; --accent:#2f7d5b; --track:#ebe9e3; --on-accent:#fff; --caution:#e0a100; --on-warn:#fff;
+  --kcal:#d97a2b; --prot:#2f7d5b; --warn:#b3261e; --accent:#2f7d5b; --track:#ebe9e3; --on-accent:#fff; --caution:#e0a100; --on-warn:#fff; --burn:#14808a;
   --m-breakfast:#b36b00; --m-lunch:#2b6cb0; --m-dinner:#7b4bb5; --m-snack:#c0365f; --m-other:#5c6660;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){ --bg:#141815; --card:#1d2420; --ink:#ecefec; --muted:#9aa59d; --line:#2c352f;
-    --kcal:#f0a066; --prot:#6cc79b; --warn:#ff8a80; --accent:#6cc79b; --track:#2a332d; --on-accent:#0d1410; --caution:#f2c14e; --on-warn:#2b0a07; color-scheme:dark; }
+    --kcal:#f0a066; --prot:#6cc79b; --warn:#ff8a80; --accent:#6cc79b; --track:#2a332d; --on-accent:#0d1410; --caution:#f2c14e; --on-warn:#2b0a07; --burn:#5ccfd6; color-scheme:dark; }
 }
 :root[data-theme="dark"]{ --bg:#141815; --card:#1d2420; --ink:#ecefec; --muted:#9aa59d; --line:#2c352f;
-  --kcal:#f0a066; --prot:#6cc79b; --warn:#ff8a80; --accent:#6cc79b; --track:#2a332d; --on-accent:#0d1410; --caution:#f2c14e; --on-warn:#2b0a07; color-scheme:dark; }
+  --kcal:#f0a066; --prot:#6cc79b; --warn:#ff8a80; --accent:#6cc79b; --track:#2a332d; --on-accent:#0d1410; --caution:#f2c14e; --on-warn:#2b0a07; --burn:#5ccfd6; color-scheme:dark; }
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
   padding:0 16px calc(32px + env(safe-area-inset-bottom))}
@@ -94,6 +94,21 @@ details summary{cursor:pointer;font-weight:600;min-height:32px}
 .toast button{flex:none;min-height:36px;padding:0 12px;border:1px solid currentColor;background:transparent;color:inherit;font-weight:600}
 @keyframes toastin{from{transform:translateY(12px);opacity:0}to{transform:none;opacity:1}}
 @media (prefers-reduced-motion: reduce){.toast{animation:none}}
+.tiles{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;align-items:stretch;gap:6px}
+.tile{border:1px solid var(--line);border-radius:10px;padding:8px 4px;text-align:center;background:var(--bg);min-width:0}
+.tile .tl{display:block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.tile b{display:block;font-size:24px;line-height:1.15;font-variant-numeric:tabular-nums}
+.tile .tu{display:block;font-size:12px;color:var(--muted)}
+.tile.burn{border-color:var(--burn)} .tile.burn b{color:var(--burn)}
+.tile.net{border-width:2px;border-color:var(--kcal)} .tile.net.near{border-color:var(--caution)}
+.tile.net.over{border-color:var(--warn);background:color-mix(in srgb, var(--warn) 10%, var(--card))} .tile.net.over b{color:var(--warn)}
+.tile .pill{display:inline-block;margin:3px 0 0;font-size:11px;padding:1px 8px}
+.op{align-self:center;font-size:20px;font-weight:700;color:var(--muted)}
+.bar.kb>i.burnseg{background:repeating-linear-gradient(45deg,var(--burn) 0 5px,color-mix(in srgb, var(--burn) 55%, var(--card)) 5px 10px)}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:6px}
+.sw{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.sw.net{background:var(--kcal)} .sw.tick{width:3px;border-radius:0;background:var(--ink)}
+.sw.burn{background:repeating-linear-gradient(45deg,var(--burn) 0 3px,color-mix(in srgb, var(--burn) 55%, var(--card)) 3px 6px)}
 .dots{display:flex;gap:6px;flex-wrap:wrap}
 .dot{width:16px;height:16px;border-radius:50%;border:2px solid var(--accent)}
 .dot.on{background:var(--accent)}
@@ -239,7 +254,7 @@ label.chk input{width:auto;min-height:0}
           <button type="submit" class="primary" id="woSubmit">Save workout</button>
           <button type="button" id="woCancel" class="hidden">Cancel edit</button>
         </div>
-        <div class="note" style="margin-top:10px">Calories burned are an estimate for information only. They are not added to your food budget, because your daily target already allows for about 3 workouts a week.</div>
+        <div class="note" id="woNote" style="margin-top:10px"></div>
       </form>
     </details>
   </section>
@@ -278,10 +293,13 @@ label.chk input{width:auto;min-height:0}
       <select id="sAct">
         <option value="1.2">Sedentary</option>
         <option value="1.375">Light (1–2 workouts/wk)</option>
-        <option value="1.45">3 workouts/wk (boxing ×2 + strength ×1)</option>
+        <option value="1.3">Mostly sedentary day-to-day, workouts counted separately</option>
+        <option value="1.45">Includes about 3 workouts/wk (boxing ×2 + strength ×1)</option>
         <option value="1.55">Moderate (4–5 workouts/wk)</option>
         <option value="1.725">Very active</option>
       </select>
+      <label class="chk" style="margin-top:12px"><input type="checkbox" id="sNet"> Subtract workout calories from food calories</label>
+      <div class="note" id="netNote" style="margin-top:4px"></div>
       <label for="sProt">Protein (g per kg body weight)</label>
       <input id="sProt" type="number" inputmode="decimal" step="0.1" min="1.2" max="3">
       <div class="note" id="targetInfo" style="margin-top:10px"></div>
@@ -633,19 +651,35 @@ function lastDays(entries, endDate, n){
   var out=[]; for(var i=n-1;i>=0;i--){ var d=addDays(endDate,-i); var t=totalsFor(entries,d); out.push({date:d,kcal:t.kcal,protein:t.protein,count:t.count}); }
   return out;
 }
-function rangeDays(entries, start, end){   // inclusive, at most 366 days, ISO date strings
+function workoutKcalFor(workouts, date){
+  var k = 0; (workouts||[]).forEach(function(w){ if (w.date===date) k += Number(w.kcal)||0; }); return k;
+}
+function rangeDays(entries, start, end, workouts){   // inclusive, at most 366 days, ISO date strings
   var out=[], d=start, n=0;
-  while (d<=end && n<366){ var t=totalsFor(entries,d); out.push({date:d,kcal:t.kcal,protein:t.protein,count:t.count}); d=addDays(d,1); n++; }
+  while (d<=end && n<366){ var t=totalsFor(entries,d); out.push({date:d,kcal:t.kcal,protein:t.protein,count:t.count,workout:workoutKcalFor(workouts,d)}); d=addDays(d,1); n++; }
   return out;
 }
-if (typeof module !== 'undefined') module.exports = {WORKOUT_TYPES:WORKOUT_TYPES,INTENSITIES:INTENSITIES,workoutKcal:workoutKcal,weekStart:weekStart,weekSummary:weekSummary,lastLift:lastLift,calorieBar:calorieBar,MEALS:MEALS,mealForHour:mealForHour,entryKey:entryKey,frequentFoods:frequentFoods,UNITS:UNITS,unitsFor:unitsFor,parseQty:parseQty,fmtQty:fmtQty,rangeDays:rangeDays,CATEGORIES:CATEGORIES,bmr:bmr,targets:targets,entryNutrition:entryNutrition,totalsFor:totalsFor,addDays:addDays,lastDays:lastDays,FOODS:FOODS,fmtDate:fmtDate};
+// Food minus workout (when subtracting is on) against the target. Over means rounded net is above target.
+function dayBudget(food, burn, target, subtract){
+  var f = Math.round(food), b = subtract ? Math.round(Math.max(0, burn)) : 0, n = f - b, max = Math.max(f, target) || 1;
+  return {food:f, burn:b, net:n, left:target - n, state: n > target ? 'over' : n >= 0.9*target ? 'near' : 'ok',
+          solidPct:100*Math.max(0, n)/max, burnPct:100*Math.min(b, f)/max, tickPct:100*target/max};
+}
+if (typeof module !== 'undefined') module.exports = {workoutKcalFor:workoutKcalFor,dayBudget:dayBudget,WORKOUT_TYPES:WORKOUT_TYPES,INTENSITIES:INTENSITIES,workoutKcal:workoutKcal,weekStart:weekStart,weekSummary:weekSummary,lastLift:lastLift,calorieBar:calorieBar,MEALS:MEALS,mealForHour:mealForHour,entryKey:entryKey,frequentFoods:frequentFoods,UNITS:UNITS,unitsFor:unitsFor,parseQty:parseQty,fmtQty:fmtQty,rangeDays:rangeDays,CATEGORIES:CATEGORIES,bmr:bmr,targets:targets,entryNutrition:entryNutrition,totalsFor:totalsFor,addDays:addDays,lastDays:lastDays,FOODS:FOODS,fmtDate:fmtDate};
 </script>
 
 <script id="app">
 (function(){
   if (typeof document === 'undefined') return;
   var KEY = 'proteinpro.v1';
-  var DEFAULTS = {kg:52, cm:160, age:33, activity:1.45, deficitPct:15, proteinPerKg:1.9, workoutGoal:3};
+  var DEFAULTS = {kg:52, cm:160, age:33, activity:1.3, deficitPct:15, proteinPerKg:1.9, workoutGoal:3, netWorkouts:true};
+  // Older saved settings had workouts built into the activity level (1.45). Now that workouts are
+  // subtracted separately, use a day-to-day level so they are not counted twice.
+  function mergeSettings(saved){
+    var m = Object.assign({}, DEFAULTS, saved);
+    if (!saved || saved.netWorkouts===undefined){ m.netWorkouts = true; if (Number(m.activity)===1.45) m.activity = 1.3; }
+    return m;
+  }
   var state = {settings:Object.assign({}, DEFAULTS), customFoods:[], shortlist:[], entries:[], workouts:[]};
   var store = null;          // {db, base} when saving to the viewer's account, else null (browser storage)
   var ready = false, knownMonths = {};
@@ -679,7 +713,7 @@ if (typeof module !== 'undefined') module.exports = {WORKOUT_TYPES:WORKOUT_TYPES
   function localLoad(){
     try{
       var s = JSON.parse(localStorage.getItem(KEY));
-      if (s && Array.isArray(s.entries)) state = {settings:Object.assign({}, DEFAULTS, s.settings), customFoods:cleanList(s.customFoods), shortlist:cleanList(s.shortlist), entries:s.entries, workouts:cleanWorkouts(s.workouts)};
+      if (s && Array.isArray(s.entries)) state = {settings:mergeSettings(s.settings), customFoods:cleanList(s.customFoods), shortlist:cleanList(s.shortlist), entries:s.entries, workouts:cleanWorkouts(s.workouts)};
     }catch(e){}
   }
   function localSave(){ try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){ setMsg('Could not save: browser storage is unavailable.', true); } }
@@ -696,7 +730,7 @@ if (typeof module !== 'undefined') module.exports = {WORKOUT_TYPES:WORKOUT_TYPES
     var snap = await store.db.collection(store.base).get(), entries = [], workouts = [];
     snap.docs.forEach(function(d){
       var v = d.data() || {};
-      if (d.id==='settings') state.settings = Object.assign({}, DEFAULTS, v.settings), state.customFoods = cleanList(v.customFoods), state.shortlist = cleanList(v.shortlist);
+      if (d.id==='settings') state.settings = mergeSettings(v.settings), state.customFoods = cleanList(v.customFoods), state.shortlist = cleanList(v.shortlist);
       else if (/^m-\d{4}-\d{2}$/.test(d.id) && Array.isArray(v.entries)){ knownMonths[d.id.slice(2)] = 1; entries = entries.concat(v.entries); workouts = workouts.concat(cleanWorkouts(v.workouts)); }
     });
     state.entries = entries; state.workouts = workouts;
@@ -798,24 +832,35 @@ if (typeof module !== 'undefined') module.exports = {WORKOUT_TYPES:WORKOUT_TYPES
   }
 
   function barHtml(pct, color){ return '<div class="bar"><i style="width:'+Math.min(100,pct)+'%;background:'+color+'"></i></div>'; }
+  function tileHtml(label, value, unit, cls, extra){
+    return '<div class="tile'+(cls?' '+cls:'')+'"><span class="tl">'+label+'</span><b>'+value+'</b><span class="tu">'+unit+'</span>'+(extra||'')+'</div>';
+  }
   function renderSummary(){
-    var t = totalsFor(state.entries, viewDate), g = targets(state.settings);
-    var kLeft = g.kcal - t.kcal, pLeft = g.protein - t.protein;
-    var html = '';
-    var cb = calorieBar(t.kcal, g.kcal), isOver = cb.state==='over';
-    var kColor = cb.state==='over' ? 'var(--warn)' : cb.state==='near' ? 'var(--caution)' : 'var(--kcal)';
-    html += '<div class="meter"><div class="top"><span class="big'+(isOver?' over':'')+'">'+fmt(t.kcal)
-      + (isOver ? '<span class="pill over">OVER</span>' : cb.state==='near' ? '<span class="pill near">NEARLY THERE</span>' : '')
-      + '</span><span class="sub">of '+fmt(g.kcal)+' kcal</span></div>'
-      + '<div class="bar kb" role="img" aria-label="'+fmt(t.kcal)+' of '+fmt(g.kcal)+' kilocalories">'
-      + '<i style="width:'+cb.withinPct+'%;background:'+kColor+'"></i>'
-      + (cb.overPct>0 ? '<i class="overseg" style="width:'+cb.overPct+'%"></i>' : '')
-      + '<b class="tick" style="left:calc('+cb.tickPct+'% - 2px)" title="Target"></b></div>'
-      + '<div class="sub'+(isOver?' over strong':'')+'">'+(isOver ? fmt(Math.round(t.kcal)-g.kcal)+' kcal over target' : fmt(g.kcal-Math.round(t.kcal))+' kcal left'+(cb.state==='near'?' · close to your target':''))+'</div></div>';
+    var t = totalsFor(state.entries, viewDate), g = targets(state.settings), sub = !!state.settings.netWorkouts;
+    var wk = workoutKcalFor(state.workouts, viewDate), bd = dayBudget(t.kcal, wk, g.kcal, sub), isOver = bd.state==='over';
+    var pLeft = g.protein - t.protein, html = '';
+    var kColor = isOver ? 'var(--warn)' : bd.state==='near' ? 'var(--caution)' : 'var(--kcal)';
+    var pill = isOver ? '<span class="pill over">OVER</span>' : bd.state==='near' ? '<span class="pill near">NEARLY THERE</span>' : '';
+    html += '<div class="tiles">'
+      + tileHtml('Food', fmt(bd.food), 'kcal eaten')
+      + '<span class="op" aria-hidden="true">−</span>'
+      + tileHtml('Workout', sub ? (bd.burn>0 ? '−'+fmt(bd.burn) : '0') : fmt(Math.round(wk)), sub ? (bd.burn>0 ? 'kcal burned' : 'none logged') : 'not subtracted', 'burn')
+      + '<span class="op" aria-hidden="true">=</span>'
+      + tileHtml('Net', fmt(bd.net), 'of '+fmt(g.kcal)+' kcal', 'net '+bd.state, pill)
+      + '</div>';
+    html += '<div class="meter"><div class="bar kb" role="img" aria-label="Food '+fmt(bd.food)+', workout '+fmt(bd.burn)+', net '+fmt(bd.net)+' of '+fmt(g.kcal)+' kilocalories">'
+      + '<i style="width:'+bd.solidPct+'%;background:'+kColor+'"></i>'
+      + (bd.burnPct>0 ? '<i class="burnseg" style="width:'+bd.burnPct+'%"></i>' : '')
+      + '<b class="tick" style="left:calc('+bd.tickPct+'% - 2px)" title="Target"></b></div>'
+      + '<div class="legend"><span><i class="sw net" style="background:'+kColor+'"></i>Net calories</span>'
+      + (bd.burn>0 ? '<span><i class="sw burn"></i>Workout burned</span>' : '')
+      + '<span><i class="sw tick"></i>Target '+fmt(g.kcal)+'</span></div>'
+      + '<div class="sub'+(isOver?' over strong':'')+'" style="margin-top:6px">'
+      + (isOver ? fmt(-bd.left)+' kcal over'+(sub?' your net target':' target') : fmt(bd.left)+' kcal left to eat'+(bd.state==='near'?' · close to your target':'')) + '</div></div>';
     html += '<div class="meter"><div class="top"><span class="big">'+fmt(t.protein,1)+' g</span><span class="sub">of '+fmt(g.protein)+' g protein</span></div>'
       + barHtml(100*t.protein/g.protein, 'var(--prot)')
       + '<div class="sub">'+(pLeft>0 ? fmt(pLeft,1)+' g to go' : 'Protein target reached')+'</div></div>';
-    if (t.kcal>0 && t.kcal < CALORIE_FLOOR && viewDate<fmtDate(new Date())) html += '<div class="warnbox">Under '+CALORIE_FLOOR+' kcal. Eating this little tends to cost muscle and backfire. Check you logged everything.</div>';
+    if (t.kcal>0 && t.kcal < CALORIE_FLOOR && viewDate<fmtDate(new Date())) html += '<div class="warnbox">You ate under '+CALORIE_FLOOR+' kcal of food. Eating this little tends to cost muscle and backfire. Check you logged everything.</div>';
     $('summary').className = 'card' + (isOver ? ' is-over' : '');
     $('summary').innerHTML = html;
   }
@@ -937,6 +982,7 @@ if (typeof module !== 'undefined') module.exports = {WORKOUT_TYPES:WORKOUT_TYPES
   function renderWorkout(){
     var goal = Number(state.settings.workoutGoal)||0, wk = weekSummary(state.workouts, viewDate);
     var dots = ''; for (var i=0;i<Math.max(goal, wk.sessions);i++) dots += '<span class="dot'+(i<wk.sessions?' on':'')+'"></span>';
+    $('woNote').textContent = state.settings.netWorkouts ? 'Estimated burn is subtracted from the day\'s food calories (net). Estimates often run high, so treat them as approximate.' : 'Estimated burn is shown for information only. It is not subtracted from your food calories (change this in Settings).';
     $('woTitle').textContent = viewDate===fmtDate(new Date()) ? 'Workout today' : 'Workout on ' + dayLabel(viewDate);
     $('woWeek').innerHTML = '<div class="note" style="margin-bottom:6px">Week of '+dayLabel(wk.start)+'</div>'
       + '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><div class="dots" role="img" aria-label="'+wk.sessions+' of '+goal+' workouts this week">'+dots+'</div>'
@@ -1056,28 +1102,34 @@ if (typeof module !== 'undefined') module.exports = {WORKOUT_TYPES:WORKOUT_TYPES
     var g = targets(state.settings), rb = rangeBounds();
     $('customRange').classList.toggle('hidden', $('range').value!=='custom');
     if (!rb){ $('week').innerHTML=''; $('weekAvg').textContent='Pick a start and end date.'; $('rangeNote').textContent=''; return; }
-    var days = rangeDays(state.entries, rb.start, rb.end), logged = days.filter(function(d){ return d.count; });
+    var sub = !!state.settings.netWorkouts;
+    var days = rangeDays(state.entries, rb.start, rb.end, state.workouts); days.forEach(function(d){ d.net = d.kcal - (sub ? d.workout : 0); });
+    var logged = days.filter(function(d){ return d.count; });
     $('rangeNote').textContent = days.length+' day'+(days.length>1?'s':'')+(days.length===366?' (max)':'');
     var shown = $('hideEmpty').checked ? logged : days;
-    $('week').innerHTML = '<div class="d note"><span></span><span>kcal</span><span>protein</span></div>' + (shown.length ? shown.map(function(d){
+    $('week').innerHTML = '<div class="d note"><span></span><span>'+(sub?'net kcal':'kcal')+'</span><span>protein</span></div>' + (shown.length ? shown.map(function(d){
       var lbl = new Date(d.date+'T00:00').toLocaleDateString(undefined,{weekday:'short', day:'numeric', month:'short'});
       return '<button type="button" class="d'+(d.date===viewDate?' sel':'')+'" data-day="'+d.date+'"><span class="lbl">'+lbl+'</span>'
-        + '<div class="b"><i style="width:'+Math.min(100,100*d.kcal/g.kcal)+'%;background:'+(Math.round(d.kcal)>g.kcal?'var(--warn);opacity:.85':'var(--kcal);opacity:.55')+'"></i><span>'+(d.count?fmt(d.kcal):'–')+'</span></div>'
+        + '<div class="b"><i style="width:'+Math.min(100,100*Math.max(0,d.net)/g.kcal)+'%;background:'+(Math.round(d.net)>g.kcal?'var(--warn);opacity:.85':'var(--kcal);opacity:.55')+'"></i><span title="'+(sub&&d.workout>0?fmt(d.kcal)+' food − '+fmt(d.workout)+' workout':'')+'">'+(d.count?fmt(d.net):'–')+'</span></div>'
         + '<div class="b"><i style="width:'+Math.min(100,100*d.protein/g.protein)+'%;background:var(--prot);opacity:.55"></i><span>'+(d.count?fmt(d.protein)+' g':'–')+'</span></div></button>';
     }).join('') : '<div class="note">No entries in this period.</div>');
     $('weekAvg').textContent = logged.length ? 'Average over '+logged.length+' logged day'+(logged.length>1?'s':'')+': '
-      + fmt(logged.reduce(function(a,d){return a+d.kcal;},0)/logged.length)+' kcal, '
+      + fmt(logged.reduce(function(a,d){return a+d.net;},0)/logged.length)+(sub?' net':'')+' kcal, '
       + fmt(logged.reduce(function(a,d){return a+d.protein;},0)/logged.length)+' g protein. Tap a day to open it. Judge progress by the trend, not one day.' : '';
   }
   function targetText(){
-    var t = targets(state.settings);
-    return 'BMR ≈ '+t.bmr+' kcal · maintenance ≈ '+t.tdee+' kcal · target '+t.kcal+' kcal & '+t.protein+' g protein'
+    var t = targets(state.settings), s = state.settings;
+    var net = s.netWorkouts ? 'target is net calories (food minus workouts): ' : 'target: ';
+    $('netNote').textContent = s.netWorkouts
+      ? (Number(s.activity)>=1.45 ? 'Your activity level already includes workouts, so subtracting them counts them twice. Choose "Mostly sedentary day-to-day" below.' : 'On: each day shows food − workout = net, and the target applies to net. Pick the activity level for the rest of your day, not counting workouts.')
+      : 'Off: workouts are shown but not subtracted. Pick an activity level that includes them.';
+    return 'BMR ≈ '+t.bmr+' kcal · maintenance'+(s.netWorkouts?' without workouts':'')+' ≈ '+t.tdee+' kcal · '+net+t.kcal+' kcal & '+t.protein+' g protein'
       + (t.kcal===CALORIE_FLOOR ? ' (held at the '+CALORIE_FLOOR+' kcal floor)' : '');
   }
   function renderSettings(){
     var s = state.settings;
     $('sKg').value=s.kg; $('sCm').value=s.cm; $('sAge').value=s.age; $('sDef').value=s.deficitPct; $('sGoal').value=s.workoutGoal;
-    $('sAct').value=String(s.activity); $('sProt').value=s.proteinPerKg;
+    $('sAct').value=String(s.activity); $('sNet').checked=!!s.netWorkouts; $('sProt').value=s.proteinPerKg;
     $('targetInfo').textContent = targetText();
   }
   function renderAll(){
@@ -1212,13 +1264,17 @@ if (typeof module !== 'undefined') module.exports = {WORKOUT_TYPES:WORKOUT_TYPES
   $('date').addEventListener('change', function(){ if($('date').value){ viewDate=$('date').value; pendingDel=null; renderAll(); } });
 
   function readSettings(){
+    // Flipping the switch also flips the matching activity level so workouts are counted exactly once.
+    var wasNet = !!state.settings.netWorkouts, nowNet = $('sNet').checked;
+    if (wasNet && !nowNet && $('sAct').value==='1.3') $('sAct').value = '1.45';
+    if (!wasNet && nowNet && $('sAct').value==='1.45') $('sAct').value = '1.3';
     var s = {kg:Number($('sKg').value), cm:Number($('sCm').value), age:Number($('sAge').value), deficitPct:Number($('sDef').value),
-      activity:Number($('sAct').value), proteinPerKg:Number($('sProt').value), workoutGoal:Number($('sGoal').value)};
+      activity:Number($('sAct').value), proteinPerKg:Number($('sProt').value), workoutGoal:Number($('sGoal').value), netWorkouts:$('sNet').checked};
     if (!(s.kg>=30&&s.cm>=120&&s.age>=15&&s.deficitPct>=0&&s.deficitPct<=25&&s.proteinPerKg>=1.2&&s.workoutGoal>=0&&s.workoutGoal<=14)) return;
     state.settings = s; persistSettingsSoon(); renderSummary(); renderWeek(); renderWorkout();
     $('targetInfo').textContent = targetText();
   }
-  ['sKg','sCm','sAge','sDef','sAct','sProt','sGoal'].forEach(function(id){ $(id).addEventListener('input', readSettings); });
+  ['sKg','sCm','sAge','sDef','sAct','sProt','sGoal','sNet'].forEach(function(id){ $(id).addEventListener('input', readSettings); });
 
   $('export').onclick=async function(){
     var json = JSON.stringify(state,null,2), name = 'protein-pro-backup-'+fmtDate(new Date())+'.json';
@@ -1239,7 +1295,7 @@ if (typeof module !== 'undefined') module.exports = {WORKOUT_TYPES:WORKOUT_TYPES
     $('impYes').onclick = function(){
       var d = pendingImport; pendingImport = null; showImport();
       var oldMonths = Object.keys(knownMonths);
-      state = {settings:Object.assign({}, DEFAULTS, d.settings), customFoods:cleanList(d.customFoods), shortlist:cleanList(d.shortlist), entries:d.entries, workouts:cleanWorkouts(d.workouts)};
+      state = {settings:mergeSettings(d.settings), customFoods:cleanList(d.customFoods), shortlist:cleanList(d.shortlist), entries:d.entries, workouts:cleanWorkouts(d.workouts)};
       var months = {}; oldMonths.forEach(function(m){ months[m]=1; });
       state.entries.forEach(function(e){ if(e && typeof e.date==='string') months[e.date.slice(0,7)]=1; });
       state.workouts.forEach(function(w){ months[w.date.slice(0,7)]=1; });

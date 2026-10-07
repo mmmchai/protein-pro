@@ -140,4 +140,22 @@ assert.strictEqual(c.lastLift(lifts, 'Squat', '2026-10-08', 'x3').kg, 30);
 assert.strictEqual(c.lastLift(lifts, 'Squat', '2026-09-23'), null);
 assert.strictEqual(c.lastLift(lifts, '', '2026-10-08'), null); assert.strictEqual(c.lastLift(lifts, 'Deadlift', '2026-10-08'), null);
 
+// day budget: food - workout vs target
+assert.strictEqual(c.targets({ ...me, activity: 1.3 }).kcal, 1320);                   // day-to-day base used with net mode
+assert.strictEqual(c.workoutKcalFor([{ date: 'd1', kcal: 300 }, { date: 'd1', kcal: 12.4 }, { date: 'd2', kcal: 99 }], 'd1'), 312.4);
+let bd = c.dayBudget(1500, 312, 1320, true);
+assert.deepStrictEqual([bd.food, bd.burn, bd.net, bd.left, bd.state], [1500, 312, 1188, 132, 'near']);
+assert.ok(Math.abs(bd.solidPct + bd.burnPct - 100) < 1e-9 && Math.abs(bd.tickPct - 100*1320/1500) < 1e-9);   // bar spans food; target tick inside
+assert.strictEqual(c.dayBudget(1500, 312, 1320, false).net, 1500);                    // subtraction off
+assert.strictEqual(c.dayBudget(1500, 312, 1320, false).burnPct, 0);
+assert.strictEqual(c.dayBudget(1700, 312, 1320, true).state, 'over');                  // 1388 net > 1320
+assert.strictEqual(c.dayBudget(1632, 312, 1320, true).state, 'near');                  // net exactly on target is not over
+assert.strictEqual(c.dayBudget(1633, 312, 1320, true).state, 'over');
+assert.strictEqual(c.dayBudget(1250, 312, 1320, true).state, 'ok');                    // 938 net, under 90%
+bd = c.dayBudget(200, 500, 1320, true);                                                // burn bigger than food
+assert.strictEqual(bd.net, -300); assert.strictEqual(bd.solidPct, 0); assert.ok(bd.burnPct <= 100); assert.strictEqual(bd.state, 'ok');
+assert.strictEqual(c.dayBudget(0, 0, 1320, true).state, 'ok');
+const rd = c.rangeDays([e('2026-10-06', 100, 10, 100, 0)], '2026-10-05', '2026-10-06', [{ date: '2026-10-06', kcal: 40 }, { date: '2026-10-05', kcal: 70 }]);
+assert.deepStrictEqual(rd.map(d => d.workout), [70, 40]);
+
 console.log('all tests passed,', c.FOODS.length, 'foods');
