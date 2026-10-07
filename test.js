@@ -114,4 +114,30 @@ assert.strictEqual(cb.state, 'over'); assert.ok(Math.abs(cb.tickPct - 100*1470/1
 assert.ok(Math.abs(cb.withinPct + cb.overPct - 100) < 1e-9);
 assert.strictEqual(c.calorieBar(0, 1470).state, 'ok');
 
+// workouts
+assert.strictEqual(c.workoutKcal('boxing', 'moderate', 60, 52), 312);        // (7-1) x 52 x 1h
+assert.strictEqual(c.workoutKcal('strength', 'moderate', 30, 52), 104);      // (5-1) x 52 x 0.5h
+assert.strictEqual(c.workoutKcal('walk', 'easy', 60, 52), Math.round(1.8*52));
+assert.ok(c.workoutKcal('boxing','hard',60,52) > c.workoutKcal('boxing','moderate',60,52));
+assert.strictEqual(c.workoutKcal('nonsense', 'bogus', 60, 52), Math.round((4-1)*52));   // unknown -> other/easy
+assert.strictEqual(c.workoutKcal('yoga', 'easy', 0, 52), 0);
+Object.keys(c.WORKOUT_TYPES).forEach(k => { const m = c.WORKOUT_TYPES[k][1]; assert.ok(m.length === 3 && m[0] < m[1] && m[1] < m[2], k); });
+// week runs Monday to Sunday (2026-10-07 is a Wednesday)
+assert.strictEqual(c.weekStart('2026-10-07'), '2026-10-05'); assert.strictEqual(c.weekStart('2026-10-05'), '2026-10-05');
+assert.strictEqual(c.weekStart('2026-10-11'), '2026-10-05'); assert.strictEqual(c.weekStart('2026-10-12'), '2026-10-12');
+assert.strictEqual(c.weekStart('2026-01-01'), '2025-12-29');
+const wo = [{ id: 'a', date: '2026-10-05', type: 'boxing', minutes: 60, kcal: 300 }, { id: 'b', date: '2026-10-07', type: 'strength', minutes: 45, kcal: 150 },
+  { id: 'c', date: '2026-10-04', type: 'walk', minutes: 30, kcal: 50 }, { id: 'd', date: '2026-10-12', type: 'walk', minutes: 30, kcal: 50 }];
+const ws = c.weekSummary(wo, '2026-10-09');
+assert.deepStrictEqual([ws.start, ws.end, ws.sessions, ws.minutes, ws.kcal], ['2026-10-05', '2026-10-11', 2, 105, 450]);
+// last-time lookup: most recent strictly earlier, case-insensitive, can exclude the one being edited
+const lifts = [{ id: 'x1', date: '2026-09-23', exercises: [{ name: 'Squat', sets: 3, reps: 8, kg: 25 }] },
+  { id: 'x2', date: '2026-09-30', exercises: [{ name: 'squat ', sets: 3, reps: 8, kg: 30 }, { name: 'Row', sets: 3, reps: 10, kg: 15 }] },
+  { id: 'x3', date: '2026-10-07', exercises: [{ name: 'Squat', sets: 4, reps: 6, kg: 35 }] }];
+assert.strictEqual(c.lastLift(lifts, 'Squat', '2026-10-07').kg, 30);
+assert.strictEqual(c.lastLift(lifts, 'SQUAT', '2026-10-08').kg, 35);
+assert.strictEqual(c.lastLift(lifts, 'Squat', '2026-10-08', 'x3').kg, 30);
+assert.strictEqual(c.lastLift(lifts, 'Squat', '2026-09-23'), null);
+assert.strictEqual(c.lastLift(lifts, '', '2026-10-08'), null); assert.strictEqual(c.lastLift(lifts, 'Deadlift', '2026-10-08'), null);
+
 console.log('all tests passed,', c.FOODS.length, 'foods');

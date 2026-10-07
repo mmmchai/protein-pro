@@ -71,7 +71,7 @@ label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
 details summary{cursor:pointer;font-weight:600;min-height:32px}
 .hidden{display:none!important}
 .seg{display:flex;gap:6px;flex-wrap:wrap}
-.seg button{flex:1;min-width:72px;padding:0 8px}
+.seg button{flex:1;min-width:0;padding:0 4px;font-size:14px}
 .seg button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:600}
 .mealgroup{--mc:var(--m-other);margin:12px 0;border:2px solid var(--mc);border-radius:12px;overflow:hidden;background:color-mix(in srgb, var(--mc) 7%, var(--card))}
 .mealgroup:first-child{margin-top:0}
@@ -94,6 +94,14 @@ details summary{cursor:pointer;font-weight:600;min-height:32px}
 .toast button{flex:none;min-height:36px;padding:0 12px;border:1px solid currentColor;background:transparent;color:inherit;font-weight:600}
 @keyframes toastin{from{transform:translateY(12px);opacity:0}to{transform:none;opacity:1}}
 @media (prefers-reduced-motion: reduce){.toast{animation:none}}
+.dots{display:flex;gap:6px;flex-wrap:wrap}
+.dot{width:16px;height:16px;border-radius:50%;border:2px solid var(--accent)}
+.dot.on{background:var(--accent)}
+.wotag{display:inline-block;padding:1px 9px;border-radius:99px;background:var(--accent);color:var(--on-accent);font-size:12px;font-weight:700;letter-spacing:.03em;margin-right:6px;vertical-align:middle}
+.lifts{margin:4px 0 0;padding:0;list-style:none;font-size:14px;font-variant-numeric:tabular-nums}
+.lifts li{padding:1px 0}
+.exrow{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:8px}
+.exrow>*{min-width:0}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .chips button{min-width:44px}
 label.chk{display:flex;gap:10px;align-items:center;color:var(--ink);font-size:15px;margin:14px 0 0}
@@ -192,6 +200,50 @@ label.chk input{width:auto;min-height:0}
     <div id="entries"></div>
   </section>
 
+  <section class="card" id="workoutCard">
+    <h2 id="woTitle">Workout</h2>
+    <div id="woWeek"></div>
+    <div id="woList"></div>
+    <details id="woDetails" style="margin-top:12px" open>
+      <summary id="woFormTitle">Log a workout</summary>
+      <form id="workoutForm" autocomplete="off">
+        <div class="chips" id="woPresets" aria-label="Quick presets">
+          <button type="button" class="small" data-type="boxing" data-min="60">Boxing 60 min</button>
+          <button type="button" class="small" data-type="strength" data-min="60">Strength 60 min</button>
+          <button type="button" class="small" data-type="walk" data-min="30">Walk 30 min</button>
+        </div>
+        <div class="row">
+          <div><label for="woType">Type</label><select id="woType"></select></div>
+          <div><label for="woMin">Minutes</label><input id="woMin" type="number" inputmode="numeric" min="1" max="600" step="1" placeholder="e.g. 60"></div>
+          <div><label for="woInt">Intensity</label>
+            <select id="woInt"><option value="easy">Easy</option><option value="moderate" selected>Moderate</option><option value="hard">Hard</option></select></div>
+          <div><label for="woKcal">Calories (optional)</label><input id="woKcal" type="number" inputmode="numeric" min="0" max="3000" step="1" placeholder="auto" aria-describedby="woPreview"></div>
+        </div>
+        <div id="woStrength" class="hidden">
+          <label for="exName">Exercises (sets × reps @ kg)</label>
+          <div class="exrow">
+            <input id="exName" list="exList" placeholder="Exercise, e.g. Squat" aria-label="Exercise name">
+            <input id="exSets" type="number" inputmode="numeric" min="1" max="20" placeholder="Sets" aria-label="Sets">
+            <input id="exReps" type="number" inputmode="numeric" min="1" max="100" placeholder="Reps" aria-label="Reps">
+            <input id="exKg" type="number" inputmode="decimal" min="0" max="500" step="any" placeholder="kg" aria-label="Weight in kg">
+          </div>
+          <datalist id="exList"></datalist>
+          <div class="note" id="exLast" style="margin:6px 0"></div>
+          <button type="button" id="exAdd" class="small">Add exercise</button>
+          <div id="exPending"></div>
+        </div>
+        <label for="woNotes">Notes, optional</label>
+        <input id="woNotes" maxlength="200" placeholder="e.g. new combo, left knee tight">
+        <div class="note" id="woPreview" style="margin:10px 0"></div>
+        <div class="row">
+          <button type="submit" class="primary" id="woSubmit">Save workout</button>
+          <button type="button" id="woCancel" class="hidden">Cancel edit</button>
+        </div>
+        <div class="note" style="margin-top:10px">Calories burned are an estimate for information only. They are not added to your food budget, because your daily target already allows for about 3 workouts a week.</div>
+      </form>
+    </details>
+  </section>
+
   <section class="card week">
     <h2>History</h2>
     <div class="row">
@@ -219,6 +271,7 @@ label.chk input{width:auto;min-height:0}
         <div><label for="sKg">Weight (kg)</label><input id="sKg" type="number" inputmode="decimal" step="0.1" min="30" max="250"></div>
         <div><label for="sCm">Height (cm)</label><input id="sCm" type="number" inputmode="decimal" step="1" min="120" max="230"></div>
         <div><label for="sAge">Age</label><input id="sAge" type="number" inputmode="numeric" step="1" min="15" max="90"></div>
+        <div><label for="sGoal">Workouts per week (goal)</label><input id="sGoal" type="number" inputmode="numeric" step="1" min="0" max="14"></div>
         <div><label for="sDef">Calorie deficit (%)</label><input id="sDef" type="number" inputmode="decimal" step="1" min="0" max="25"></div>
       </div>
       <label for="sAct">Activity</label>
@@ -521,6 +574,38 @@ function calorieBar(eaten, target){
   return {state: e > target ? 'over' : e >= 0.9*target ? 'near' : 'ok',
           withinPct: 100*Math.min(e, target)/max, overPct: 100*Math.max(0, e - target)/max, tickPct: 100*target/max};
 }
+// Workouts. MET values are approximate (Compendium of Physical Activities), easy / moderate / hard.
+var WORKOUT_TYPES = {
+  boxing:['Boxing class',[5,7,9]], strength:['Strength training',[3.5,5,6]], run:['Running',[8,9.8,11.5]],
+  walk:['Walking',[2.8,3.5,4.3]], cycle:['Cycling',[5.8,7.5,10]], hiit:['HIIT / circuit',[6,8,10]],
+  yoga:['Yoga / Pilates',[2.5,3,4]], swim:['Swimming',[5.8,7,9.8]], other:['Other',[4,5.5,7.5]]
+};
+var INTENSITIES = ['easy','moderate','hard'];
+// Extra calories above resting: (MET - 1) x kg x hours. Resting burn is already in the daily target.
+function workoutKcal(type, intensity, minutes, kg){
+  var t = WORKOUT_TYPES[type] || WORKOUT_TYPES.other, met = t[1][Math.max(0, INTENSITIES.indexOf(intensity))];
+  return Math.round(Math.max(0, met-1) * kg * (minutes/60));
+}
+function weekStart(dateStr){          // Monday of the week containing dateStr
+  var p = dateStr.split('-').map(Number), d = new Date(p[0], p[1]-1, p[2]);
+  return addDays(dateStr, -((d.getDay()+6)%7));
+}
+function weekSummary(workouts, dateStr){
+  var s = weekStart(dateStr), e = addDays(s, 6), r = {start:s, end:e, sessions:0, minutes:0, kcal:0};
+  workouts.forEach(function(w){ if (w.date>=s && w.date<=e){ r.sessions++; r.minutes += Number(w.minutes)||0; r.kcal += Number(w.kcal)||0; } });
+  return r;
+}
+// Most recent earlier time this exercise was logged (for "last time" hints)
+function lastLift(workouts, name, beforeDate, excludeId){
+  var n = String(name||'').trim().toLowerCase(), best = null; if (!n) return null;
+  workouts.forEach(function(w){
+    if (w.id===excludeId || !(w.date < beforeDate) || !Array.isArray(w.exercises)) return;
+    w.exercises.forEach(function(x){
+      if (String(x.name).trim().toLowerCase()===n && (!best || w.date>best.date)) best = {date:w.date, sets:x.sets, reps:x.reps, kg:x.kg};
+    });
+  });
+  return best;
+}
 function bmr(s){ return 10*s.kg + 6.25*s.cm - 5*s.age - 161; }   // Mifflin-St Jeor, female
 function targets(s){
   var tdee = bmr(s) * s.activity;
@@ -553,15 +638,15 @@ function rangeDays(entries, start, end){   // inclusive, at most 366 days, ISO d
   while (d<=end && n<366){ var t=totalsFor(entries,d); out.push({date:d,kcal:t.kcal,protein:t.protein,count:t.count}); d=addDays(d,1); n++; }
   return out;
 }
-if (typeof module !== 'undefined') module.exports = {calorieBar:calorieBar,MEALS:MEALS,mealForHour:mealForHour,entryKey:entryKey,frequentFoods:frequentFoods,UNITS:UNITS,unitsFor:unitsFor,parseQty:parseQty,fmtQty:fmtQty,rangeDays:rangeDays,CATEGORIES:CATEGORIES,bmr:bmr,targets:targets,entryNutrition:entryNutrition,totalsFor:totalsFor,addDays:addDays,lastDays:lastDays,FOODS:FOODS,fmtDate:fmtDate};
+if (typeof module !== 'undefined') module.exports = {WORKOUT_TYPES:WORKOUT_TYPES,INTENSITIES:INTENSITIES,workoutKcal:workoutKcal,weekStart:weekStart,weekSummary:weekSummary,lastLift:lastLift,calorieBar:calorieBar,MEALS:MEALS,mealForHour:mealForHour,entryKey:entryKey,frequentFoods:frequentFoods,UNITS:UNITS,unitsFor:unitsFor,parseQty:parseQty,fmtQty:fmtQty,rangeDays:rangeDays,CATEGORIES:CATEGORIES,bmr:bmr,targets:targets,entryNutrition:entryNutrition,totalsFor:totalsFor,addDays:addDays,lastDays:lastDays,FOODS:FOODS,fmtDate:fmtDate};
 </script>
 
 <script id="app">
 (function(){
   if (typeof document === 'undefined') return;
   var KEY = 'proteinpro.v1';
-  var DEFAULTS = {kg:52, cm:160, age:33, activity:1.45, deficitPct:15, proteinPerKg:1.9};
-  var state = {settings:Object.assign({}, DEFAULTS), customFoods:[], shortlist:[], entries:[]};
+  var DEFAULTS = {kg:52, cm:160, age:33, activity:1.45, deficitPct:15, proteinPerKg:1.9, workoutGoal:3};
+  var state = {settings:Object.assign({}, DEFAULTS), customFoods:[], shortlist:[], entries:[], workouts:[]};
   var store = null;          // {db, base} when saving to the viewer's account, else null (browser storage)
   var ready = false, knownMonths = {};
   var viewDate = fmtDate(new Date());
@@ -588,12 +673,13 @@ if (typeof module !== 'undefined') module.exports = {calorieBar:calorieBar,MEALS
   function totalsText(e){ var n = entryTotals(e); return fmt(n.kcal)+' kcal · '+fmt(n.protein,1)+' g protein'; }
   function restoreEntry(e){ state.entries.push(e); persist({months:[e.date.slice(0,7)]}); renderAll(); }
   function cleanList(a){ return Array.isArray(a) ? a.filter(function(x){ return x && typeof x.name==='string'; }) : []; }
+  function cleanWorkouts(a){ return Array.isArray(a) ? a.filter(function(w){ return w && typeof w.date==='string' && typeof w.type==='string'; }) : []; }
 
   // ---------- persistence ----------
   function localLoad(){
     try{
       var s = JSON.parse(localStorage.getItem(KEY));
-      if (s && Array.isArray(s.entries)) state = {settings:Object.assign({}, DEFAULTS, s.settings), customFoods:cleanList(s.customFoods), shortlist:cleanList(s.shortlist), entries:s.entries};
+      if (s && Array.isArray(s.entries)) state = {settings:Object.assign({}, DEFAULTS, s.settings), customFoods:cleanList(s.customFoods), shortlist:cleanList(s.shortlist), entries:s.entries, workouts:cleanWorkouts(s.workouts)};
     }catch(e){}
   }
   function localSave(){ try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){ setMsg('Could not save: browser storage is unavailable.', true); } }
@@ -607,13 +693,13 @@ if (typeof module !== 'undefined') module.exports = {calorieBar:calorieBar,MEALS
     }catch(e){ return null; }
   }
   async function dbLoad(){
-    var snap = await store.db.collection(store.base).get(), entries = [];
+    var snap = await store.db.collection(store.base).get(), entries = [], workouts = [];
     snap.docs.forEach(function(d){
       var v = d.data() || {};
       if (d.id==='settings') state.settings = Object.assign({}, DEFAULTS, v.settings), state.customFoods = cleanList(v.customFoods), state.shortlist = cleanList(v.shortlist);
-      else if (/^m-\d{4}-\d{2}$/.test(d.id) && Array.isArray(v.entries)){ knownMonths[d.id.slice(2)] = 1; entries = entries.concat(v.entries); }
+      else if (/^m-\d{4}-\d{2}$/.test(d.id) && Array.isArray(v.entries)){ knownMonths[d.id.slice(2)] = 1; entries = entries.concat(v.entries); workouts = workouts.concat(cleanWorkouts(v.workouts)); }
     });
-    state.entries = entries;
+    state.entries = entries; state.workouts = workouts;
   }
   var queue = Promise.resolve();
   // what: {settings:bool, months:['YYYY-MM',...]}
@@ -623,7 +709,7 @@ if (typeof module !== 'undefined') module.exports = {calorieBar:calorieBar,MEALS
     if (what.settings) ops.push(function(){ return store.db.doc(store.base+'/settings').set({settings:state.settings, customFoods:state.customFoods, shortlist:state.shortlist}); });
     (what.months||[]).forEach(function(m){
       knownMonths[m] = 1;
-      ops.push(function(){ return store.db.doc(store.base+'/m-'+m).set({entries:state.entries.filter(function(e){ return e.date.slice(0,7)===m; })}); });
+      ops.push(function(){ return store.db.doc(store.base+'/m-'+m).set({entries:state.entries.filter(function(e){ return e.date.slice(0,7)===m; }), workouts:state.workouts.filter(function(w){ return w.date.slice(0,7)===m; })}); });
     });
     queue = queue.then(function(){ return Promise.all(ops.map(function(f){ return f(); })); })
       .then(function(){ if (saveErr){ saveErr = false; setMsg(''); } })
@@ -841,6 +927,120 @@ if (typeof module !== 'undefined') module.exports = {calorieBar:calorieBar,MEALS
       pendingFoodDel = null; persist({settings:true}); renderFoodSelect(); renderMyFoods(); toast('Saved food deleted');
     }
   });
+  // ---------- workouts ----------
+  var editingWo = null, pendingEx = [];
+  function dayLabel(d){ return new Date(d+'T00:00').toLocaleDateString(undefined,{weekday:'short', day:'numeric', month:'short'}); }
+  function liftText(x){ return esc(x.name)+' · '+fmt(x.sets)+' × '+fmt(x.reps)+(x.kg>0?' @ '+fmt(x.kg,1)+' kg':' (bodyweight)'); }
+  function renderWoTypes(){
+    $('woType').innerHTML = Object.keys(WORKOUT_TYPES).map(function(k){ return '<option value="'+k+'">'+esc(WORKOUT_TYPES[k][0])+'</option>'; }).join('');
+  }
+  function renderWorkout(){
+    var goal = Number(state.settings.workoutGoal)||0, wk = weekSummary(state.workouts, viewDate);
+    var dots = ''; for (var i=0;i<Math.max(goal, wk.sessions);i++) dots += '<span class="dot'+(i<wk.sessions?' on':'')+'"></span>';
+    $('woTitle').textContent = viewDate===fmtDate(new Date()) ? 'Workout today' : 'Workout on ' + dayLabel(viewDate);
+    $('woWeek').innerHTML = '<div class="note" style="margin-bottom:6px">Week of '+dayLabel(wk.start)+'</div>'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><div class="dots" role="img" aria-label="'+wk.sessions+' of '+goal+' workouts this week">'+dots+'</div>'
+      + '<div><b>'+wk.sessions+'</b>'+(goal?' of '+goal:'')+' sessions · '+fmt(wk.minutes)+' min · ~'+fmt(wk.kcal)+' kcal est.</div></div>'
+      + (goal && wk.sessions>=goal ? '<div class="sub strong" style="color:var(--accent);margin-top:6px">Weekly goal reached</div>' : '');
+    var list = state.workouts.filter(function(w){ return w.date===viewDate; });
+    $('woList').innerHTML = list.length ? list.map(function(w){
+      var t = WORKOUT_TYPES[w.type] || WORKOUT_TYPES.other;
+      return '<div class="entry"><div class="main"><div class="name"><span class="wotag">'+esc(t[0])+'</span>'+fmt(w.minutes)+' min · '+esc(w.intensity||'moderate')+'</div>'
+        + '<div class="meta">~'+fmt(w.kcal)+' kcal '+(w.est?'(estimate)':'(entered)')+(w.notes?' · '+esc(w.notes):'')+'</div>'
+        + (Array.isArray(w.exercises)&&w.exercises.length ? '<ul class="lifts">'+w.exercises.map(function(x){ return '<li>'+liftText(x)+'</li>'; }).join('')+'</ul>' : '')
+        + '<div class="actions"><button class="small" data-woedit="'+esc(w.id)+'">Edit</button><button class="small danger" data-wodel="'+esc(w.id)+'">Delete</button></div></div></div>';
+    }).join('') : '<div class="note">No workout logged for this day.</div>';
+    // exercise name suggestions: common lifts plus anything logged before
+    var names = ['Squat','Deadlift','Romanian deadlift','Lunge','Leg press','Hip thrust','Bench press','Overhead press','Row','Lat pulldown','Pull-up','Push-up','Plank','Bicep curl','Tricep extension','Lateral raise'];
+    state.workouts.forEach(function(w){ (w.exercises||[]).forEach(function(x){ if (names.map(function(n){return n.toLowerCase();}).indexOf(String(x.name).toLowerCase())<0) names.push(x.name); }); });
+    $('exList').innerHTML = names.map(function(n){ return '<option value="'+esc(n)+'">'; }).join('');
+  }
+  function woPreview(){
+    var min = Number($('woMin').value), kcalIn = $('woKcal').value;
+    if (!(min>0)){ $('woPreview').textContent=''; return; }
+    var est = workoutKcal($('woType').value, $('woInt').value, min, state.settings.kg);
+    $('woPreview').textContent = kcalIn!=='' ? '~'+fmt(Number(kcalIn))+' kcal burned (as entered)' : '~'+fmt(est)+' kcal extra burn (estimate)';
+  }
+  function renderPendingEx(){
+    $('exPending').innerHTML = pendingEx.map(function(x,i){
+      return '<div class="entry" style="padding:6px 0"><div class="main">'+liftText(x)+'</div><button type="button" class="small" data-exrm="'+i+'" aria-label="Remove '+esc(x.name)+'">Remove</button></div>';
+    }).join('');
+  }
+  function showStrength(){ $('woStrength').classList.toggle('hidden', $('woType').value!=='strength'); }
+  function exHint(){
+    var l = lastLift(state.workouts, $('exName').value, viewDate, editingWo);
+    $('exLast').textContent = l ? 'Last time ('+dayLabel(l.date)+'): '+fmt(l.sets)+' × '+fmt(l.reps)+(l.kg>0?' @ '+fmt(l.kg,1)+' kg':' bodyweight') : '';
+    return l;
+  }
+  function resetWoForm(){
+    editingWo = null; pendingEx = []; $('workoutForm').reset(); $('woFormTitle').textContent='Log a workout'; $('woSubmit').textContent='Save workout';
+    $('woCancel').classList.add('hidden'); $('exLast').textContent=''; showStrength(); renderPendingEx(); woPreview();
+  }
+  ['woType','woMin','woInt','woKcal'].forEach(function(id){ $(id).addEventListener('input', woPreview); });
+  $('woType').addEventListener('change', showStrength);
+  $('woPresets').addEventListener('click', function(ev){
+    var b = ev.target.closest('button[data-type]'); if(!b) return;
+    $('woType').value = b.dataset.type; $('woMin').value = b.dataset.min; showStrength(); woPreview();
+  });
+  $('exName').addEventListener('input', exHint);
+  $('exName').addEventListener('change', function(){
+    var l = exHint();
+    if (l && !$('exSets').value && !$('exReps').value && !$('exKg').value){ $('exSets').value = l.sets; $('exReps').value = l.reps; $('exKg').value = l.kg||''; }
+  });
+  $('exAdd').addEventListener('click', function(){
+    var name = $('exName').value.trim(), sets = Number($('exSets').value), reps = Number($('exReps').value), kg = Number($('exKg').value)||0;
+    if (!name){ setMsg('Enter an exercise name.', true); return; }
+    if (!(sets>=1 && sets<=20) || !(reps>=1 && reps<=100) || !(kg>=0 && kg<=500)){ setMsg('Enter sets (1-20), reps (1-100) and weight in kg (0 for bodyweight).', true); return; }
+    pendingEx.push({name:name, sets:sets, reps:reps, kg:kg}); renderPendingEx();
+    $('exName').value=''; $('exSets').value=''; $('exReps').value=''; $('exKg').value=''; $('exLast').textContent=''; $('exName').focus();
+  });
+  $('exPending').addEventListener('click', function(ev){
+    var b = ev.target.closest('button[data-exrm]'); if(!b) return;
+    pendingEx.splice(Number(b.dataset.exrm), 1); renderPendingEx();
+  });
+  $('workoutForm').addEventListener('submit', function(ev){
+    ev.preventDefault();
+    if (!ready){ setMsg('Still loading your log. Try again in a moment.', true); return; }
+    var min = Number($('woMin').value), type = $('woType').value;
+    if (!(min>=1 && min<=600)){ setMsg('Enter the workout length in minutes (1-600).', true); return; }
+    // include an exercise still typed in the row but not yet added
+    if (type==='strength' && $('exName').value.trim() && Number($('exSets').value)>=1 && Number($('exReps').value)>=1){ $('exAdd').click(); }
+    var kIn = $('woKcal').value, est = kIn==='';
+    var kcal = est ? workoutKcal(type, $('woInt').value, min, state.settings.kg) : Math.round(Number(kIn));
+    if (!(kcal>=0 && kcal<=3000)){ setMsg('Calories burned must be between 0 and 3,000.', true); return; }
+    var w = {id: editingWo || ('w'+Date.now()+Math.random().toString(36).slice(2,6)), date:viewDate, type:type, minutes:min, intensity:$('woInt').value,
+      kcal:kcal, est:est, notes:$('woNotes').value.trim()};
+    if (type==='strength' && pendingEx.length) w.exercises = pendingEx.slice();
+    var wasEdit = !!editingWo;
+    if (wasEdit){ var i = state.workouts.findIndex(function(x){ return x.id===editingWo; }); if (i>=0){ w.date = state.workouts[i].date; state.workouts[i] = w; } }
+    else state.workouts.push(w);
+    persist({months:[w.date.slice(0,7)]}); resetWoForm(); renderAll();
+    var summary = WORKOUT_TYPES[w.type][0]+' · '+w.minutes+' min · ~'+fmt(w.kcal)+' kcal';
+    if (wasEdit) toast('Workout updated', {sub:summary});
+    else toast('Workout saved', {sub:summary, undo:function(){
+      state.workouts = state.workouts.filter(function(x){ return x.id!==w.id; }); persist({months:[w.date.slice(0,7)]}); renderAll();
+    }});
+  });
+  $('woCancel').addEventListener('click', resetWoForm);
+  $('woList').addEventListener('click', function(ev){
+    var b = ev.target.closest('button'); if(!b) return;
+    if (b.dataset.wodel){
+      var w = state.workouts.filter(function(x){ return x.id===b.dataset.wodel; })[0]; if(!w) return;
+      state.workouts = state.workouts.filter(function(x){ return x.id!==w.id; });
+      if (editingWo===w.id) resetWoForm();
+      persist({months:[w.date.slice(0,7)]}); renderAll();
+      toast('Workout deleted', {undo:function(){ state.workouts.push(w); persist({months:[w.date.slice(0,7)]}); renderAll(); }});
+    } else if (b.dataset.woedit){
+      var e = state.workouts.filter(function(x){ return x.id===b.dataset.woedit; })[0]; if(!e) return;
+      editingWo = e.id; $('woType').value = e.type; $('woMin').value = e.minutes; $('woInt').value = e.intensity||'moderate';
+      $('woKcal').value = e.est ? '' : e.kcal; $('woNotes').value = e.notes||''; pendingEx = Array.isArray(e.exercises) ? e.exercises.slice() : [];
+      showStrength(); renderPendingEx(); woPreview();
+      $('woFormTitle').textContent='Edit workout'; $('woSubmit').textContent='Save changes'; $('woCancel').classList.remove('hidden');
+      $('woDetails').open = true; $('woDetails').scrollIntoView({behavior:'smooth', block:'start'});
+    }
+  });
+  renderWoTypes(); showStrength();
+
   function rangeBounds(){
     var r = $('range').value;
     if (r==='custom'){
@@ -876,14 +1076,14 @@ if (typeof module !== 'undefined') module.exports = {calorieBar:calorieBar,MEALS
   }
   function renderSettings(){
     var s = state.settings;
-    $('sKg').value=s.kg; $('sCm').value=s.cm; $('sAge').value=s.age; $('sDef').value=s.deficitPct;
+    $('sKg').value=s.kg; $('sCm').value=s.cm; $('sAge').value=s.age; $('sDef').value=s.deficitPct; $('sGoal').value=s.workoutGoal;
     $('sAct').value=String(s.activity); $('sProt').value=s.proteinPerKg;
     $('targetInfo').textContent = targetText();
   }
   function renderAll(){
     $('date').value = viewDate;
     $('logTitle').textContent = viewDate===fmtDate(new Date()) ? "Today's log" : 'Log for ' + new Date(viewDate+'T00:00').toLocaleDateString(undefined,{weekday:'short', day:'numeric', month:'short', year:'numeric'});
-    renderSummary(); renderEntries(); renderQuick(); renderMyFoods(); renderWeek(); renderSettings();
+    renderSummary(); renderEntries(); renderQuick(); renderMyFoods(); renderWorkout(); renderWeek(); renderSettings();
   }
 
   function resetForm(){
@@ -1013,12 +1213,12 @@ if (typeof module !== 'undefined') module.exports = {calorieBar:calorieBar,MEALS
 
   function readSettings(){
     var s = {kg:Number($('sKg').value), cm:Number($('sCm').value), age:Number($('sAge').value), deficitPct:Number($('sDef').value),
-      activity:Number($('sAct').value), proteinPerKg:Number($('sProt').value)};
-    if (!(s.kg>=30&&s.cm>=120&&s.age>=15&&s.deficitPct>=0&&s.deficitPct<=25&&s.proteinPerKg>=1.2)) return;
-    state.settings = s; persistSettingsSoon(); renderSummary(); renderWeek();
+      activity:Number($('sAct').value), proteinPerKg:Number($('sProt').value), workoutGoal:Number($('sGoal').value)};
+    if (!(s.kg>=30&&s.cm>=120&&s.age>=15&&s.deficitPct>=0&&s.deficitPct<=25&&s.proteinPerKg>=1.2&&s.workoutGoal>=0&&s.workoutGoal<=14)) return;
+    state.settings = s; persistSettingsSoon(); renderSummary(); renderWeek(); renderWorkout();
     $('targetInfo').textContent = targetText();
   }
-  ['sKg','sCm','sAge','sDef','sAct','sProt'].forEach(function(id){ $(id).addEventListener('input', readSettings); });
+  ['sKg','sCm','sAge','sDef','sAct','sProt','sGoal'].forEach(function(id){ $(id).addEventListener('input', readSettings); });
 
   $('export').onclick=async function(){
     var json = JSON.stringify(state,null,2), name = 'protein-pro-backup-'+fmtDate(new Date())+'.json';
@@ -1039,9 +1239,10 @@ if (typeof module !== 'undefined') module.exports = {calorieBar:calorieBar,MEALS
     $('impYes').onclick = function(){
       var d = pendingImport; pendingImport = null; showImport();
       var oldMonths = Object.keys(knownMonths);
-      state = {settings:Object.assign({}, DEFAULTS, d.settings), customFoods:cleanList(d.customFoods), shortlist:cleanList(d.shortlist), entries:d.entries};
+      state = {settings:Object.assign({}, DEFAULTS, d.settings), customFoods:cleanList(d.customFoods), shortlist:cleanList(d.shortlist), entries:d.entries, workouts:cleanWorkouts(d.workouts)};
       var months = {}; oldMonths.forEach(function(m){ months[m]=1; });
       state.entries.forEach(function(e){ if(e && typeof e.date==='string') months[e.date.slice(0,7)]=1; });
+      state.workouts.forEach(function(w){ months[w.date.slice(0,7)]=1; });
       persist({settings:true, months:Object.keys(months)}); renderFoodSelect(); renderAll(); toast('Backup imported');
     };
     $('impNo').onclick = function(){ pendingImport = null; showImport(); };
