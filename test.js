@@ -64,7 +64,7 @@ assert.strictEqual(c.fmtQty(0.25), '¼'); assert.strictEqual(c.fmtQty(1/3), '⅓
 Object.keys(c.UNITS).forEach(id => {
   const f = c.FOODS.find(x => x.id === id); assert.ok(f, 'unit for unknown food ' + id);
   c.UNITS[id].forEach(([label, g, form]) => { assert.ok(label && g > 0, id + ' ' + label);
-    if (form !== undefined) assert.ok(f.forms[form], id + ' form ' + form); });
+    if (form !== undefined) [].concat(form).forEach(i => assert.ok(f.forms[i], id + ' form ' + i)); });
 });
 const bread = c.FOODS.find(f => f.id === 'bread-wholewheat');
 assert.strictEqual(c.unitsFor(bread, 0)[0].label, 'slice, standard');
@@ -74,10 +74,11 @@ assert.ok(Math.abs(c.entryNutrition({kcal: 247, protein: 13}, 1 * 35, 0).kcal - 
 assert.ok(Math.abs(c.entryNutrition({kcal: 47, protein: 0.9}, 0.5 * 131, 0).kcal - 30.8) < 0.1);
 // cooked-only units hide when the dry option is selected
 const whiteRice = c.FOODS.find(f => f.id === 'white-rice');
-assert.strictEqual(c.unitsFor(whiteRice, 0).length, 0); assert.strictEqual(c.unitsFor(whiteRice, 1).length, 1);
+const nat = (f, i) => c.unitsFor(f, i).filter(u => !u.uni);
+assert.deepStrictEqual(nat(whiteRice, 0).map(u => u.label), ['serving, dry (75 g)']); assert.deepStrictEqual(nat(whiteRice, 1).map(u => u.label), ['cup, cooked']);
 // custom food serving size
 assert.strictEqual(c.unitsFor({custom: true, servingG: 60}, 0)[0].g, 60);
-assert.strictEqual(c.unitsFor({custom: true}, 0).length, 0);
+assert.strictEqual(nat({custom: true}, 0).length, 0);
 
 // meals
 assert.deepStrictEqual(c.MEALS.map(m => m[0]), ['breakfast', 'lunch', 'dinner', 'snack']);
@@ -193,5 +194,22 @@ kp = c.calorieKpis(1700, 312, 1320, true); assert.deepStrictEqual([kp.foodState,
 kp = c.calorieKpis(1400, 500, 1320, true); assert.deepStrictEqual([kp.foodState, kp.netState], ['over', 'ok']);   // workout brings an over day back under
 kp = c.calorieKpis(1400, 500, 1320, false); assert.deepStrictEqual([kp.net, kp.netState, kp.burn], [1400, 'over', 0]);   // not subtracting
 kp = c.calorieKpis(1320, 0, 1320, true); assert.deepStrictEqual([kp.foodDelta, kp.foodState, kp.netState], [0, 'near', 'near']);
+
+// every food and state can switch unit: a typical size plus oz, drinks also ml / fl oz
+c.FOODS.forEach(f => f.forms.forEach((x, i) => {
+  const us = c.unitsFor(f, i), labels = us.map(u => u.label);
+  assert.ok(us.some(u => !u.uni), 'no typical size for ' + f.id + ' / ' + x[0]);
+  assert.ok(labels.includes('oz'), 'no oz for ' + f.id);
+  assert.strictEqual(new Set(labels).size, labels.length, 'duplicate unit labels for ' + f.id + ' / ' + x[0]);
+  us.forEach(u => assert.ok(u.g > 0));
+  assert.strictEqual(labels.includes('ml'), !!c.LIQUIDS[f.id], 'ml only for drinks: ' + f.id);
+}));
+Object.keys(c.LIQUIDS).forEach(id => assert.ok(c.FOODS.find(f => f.id === id), 'unknown liquid ' + id));
+assert.ok(Math.abs(c.unitsFor(c.FOODS.find(f => f.id === 'milk'), 0).find(u => u.label === 'fl oz').g - 29.6) < 1e-9);
+// per-state weights: a cooked chicken breast is lighter than a raw one
+const cb2 = c.FOODS.find(f => f.id === 'chicken-breast');
+assert.strictEqual(nat(cb2, 0)[0].g, 170); assert.strictEqual(nat(cb2, 1)[0].g, 120); assert.strictEqual(nat(cb2, 3)[0].g, 120);
+// custom food: serving size and drink flag
+assert.deepStrictEqual(c.unitsFor({custom: true, servingG: 60, liquid: true}, 0).map(u => u.label), ['serving', 'oz', 'ml', 'fl oz']);
 
 console.log('all tests passed,', c.FOODS.length, 'foods');

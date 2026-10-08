@@ -2,7 +2,7 @@
 
 Single-file calorie and protein tracker. Open `index.html` in a browser (or host it as a static page and add it to your phone's home screen).
 
-- Pick a food (search box), how it was cooked or its state (raw, cooked, dry), and an amount: grams, or a count such as 1, ½ or 1 1/2 of a typical unit (slice, medium orange, tbsp, cup). Unit sizes are estimates. Optionally add oil or butter in tsp.
+- Pick a food (search box), how it was cooked or its state (raw, cooked, dry), and an amount: grams, or a count such as 1, ½ or 1 1/2 of a typical unit (slice, medium orange, tbsp, cup). Every food can switch between its typical sizes, grams and ounces (drinks also ml and fl oz), and the amount converts when you switch. Typical sizes are estimates. Optionally add oil or butter in tsp.
 - If you already know the calories, tick "I know the calories" and enter the totals yourself.
 - The top summary has two calorie KPIs: Food vs target (deficit or over the threshold, food alone) and Adjusted total (food minus workout, against the same target), then Protein and Carbs cards.
 - Pick Breakfast, Lunch, Dinner or Snack before adding. The log is grouped by meal with subtotals. It defaults to a meal by time of day.

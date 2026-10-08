@@ -219,6 +219,7 @@ label.chk input{width:auto;min-height:0}
       <form id="customForm" autocomplete="off">
         <label for="cName">Name</label>
         <input id="cName" required maxlength="60">
+        <label class="chk" style="margin:10px 0 0"><input type="checkbox" id="cLiquid"> It is a drink (lets you enter ml and fl oz)</label>
         <label for="cServ">One serving weighs (g), optional</label>
         <input id="cServ" type="number" inputmode="decimal" min="1" max="2000" step="any" placeholder="e.g. 60. Lets you enter servings.">
         <label for="cCarb">Carbs g per 100 g</label>
@@ -607,9 +608,70 @@ var UNITS = {
   'kidney-beans':[['cup, drained',177]],
   'white-beans':[['cup, drained',179]]
 };
+// More typical sizes so every food and state has at least one. The third value can be one form index or a list of them.
+var UNITS_MORE = {
+  'chicken-breast':[['breast, medium',170,0],['breast, medium',120,[1,2,3]]],
+  'chicken-thigh':[['thigh, medium',115,0],['thigh, medium',85,[1,2]]],
+  'beef-mince':[['portion, palm-size',100,0],['portion, palm-size',80,1]],
+  'beef-steak':[['steak, medium',170,0],['steak, medium',125,1]],
+  'pork-loin':[['chop, medium',140,0],['chop, medium',100,1]],
+  'salmon':[['fillet, medium',150,0],['fillet, medium',120,1]],
+  'white-fish':[['fillet, medium',140,0],['fillet, medium',110,1]],
+  'tuna-can':[['can, drained',110]],
+  'shrimp':[['shrimp, large',14,0],['shrimp, large',11,1]],
+  'mozzarella':[['slice',28],['ball, mini',8]],
+  'tofu':[['slice',60],['cup, cubed',252]],
+  'white-rice':[['serving, dry (75 g)',75,0]], 'brown-rice':[['serving, dry (75 g)',75,0]], 'pasta':[['serving, dry (75 g)',75,0]],
+  'quinoa':[['serving, dry (60 g)',60,0]], 'lentils':[['serving, dry (50 g)',50,0]],
+  'edamame':[['cup, shelled',155]],
+  'pineapple':[['slice',84],['cup, chunks',165]],
+  'watermelon':[['wedge, medium',286],['cup, diced',152]],
+  'mushrooms':[['cup, sliced',70,0],['cup, cooked',156,1],['mushroom, medium',18,0]],
+  'turkey-breast':[['breast portion',150,0],['breast portion',120,1]],
+  'ham-lean':[['slice',25]],
+  'tilapia':[['fillet, medium',110,0],['fillet, medium',90,1]],
+  'scallops':[['scallop, large',30,0],['scallop, large',24,1]],
+  'sardines':[['can, drained',90]],
+  'tempeh':[['slice',30]], 'seitan':[['serving',85]],
+  'feta':[['portion (30 g)',30],['cube, 2 cm',20]],
+  'couscous':[['serving, dry (60 g)',60,0],['cup, cooked',157,1]],
+  'soba':[['serving, cooked',180]], 'rice-noodles':[['serving, cooked',175]],
+  'bulgur':[['cup, cooked',182]], 'barley':[['cup, cooked',157]],
+  'granola':[['serving (40 g)',40]], 'cornflakes':[['bowl (40 g)',40]],
+  'raspberries':[['cup',123]], 'papaya':[['cup, cubed',140]], 'pomegranate':[['cup, seeds',174]], 'cantaloupe':[['cup, cubed',160]],
+  'dragon-fruit':[['fruit, medium (flesh)',170]], 'raisins':[['small box (14 g)',14]],
+  'napa-cabbage':[['cup, shredded',70,0],['cup, cooked',150,1]],
+  'cabbage':[['cup, shredded',70,0],['cup, cooked',150,1]],
+  'cauliflower':[['cup, florets',107,0],['cup, cooked',124,1]],
+  'kale':[['cup, chopped',21,0],['cup, cooked',130,1]],
+  'gai-lan':[['bunch, small (250 g)',250,0],['cup, cooked',150,1]],
+  'yu-choy':[['bunch, small (250 g)',250,0],['cup, cooked',150,1]],
+  'ong-choy':[['bunch, small (250 g)',250,0],['cup, cooked',150,1]],
+  'yin-choy':[['bunch, small (250 g)',250,0],['cup, cooked',150,1]],
+  'gai-choy':[['bunch, small (250 g)',250,0],['cup, cooked',150,1]],
+  'gau-choy':[['bunch (100 g)',100]],
+  'asparagus':[['spear, medium',16]],
+  'green-beans':[['cup',110,0],['cup, cooked',125,1]],
+  'snow-peas':[['cup',98]], 'green-peas':[['cup',160]],
+  'sweetcorn':[['ear, medium (kernels)',90],['cup, kernels',164]],
+  'brussels-sprouts':[['sprout, medium',19]],
+  'beetroot':[['beet, medium',82,0],['beet, medium',70,1]],
+  'eggplant':[['cup, cubed',82,0],['cup, cooked',99,1]],
+  'pumpkin':[['cup, cubed',116,0],['cup, cooked',245,1]],
+  'bean-sprouts':[['cup',104]], 'kimchi':[['cup',150]],
+  'sunflower-seeds':[['tbsp',9]], 'tahini':[['tbsp',15]]
+};
+Object.keys(UNITS_MORE).forEach(function(k){ UNITS[k] = (UNITS[k] || []).concat(UNITS_MORE[k]); });
+// Drinks can also be entered in ml and fl oz (1 ml is taken as 1 g).
+var LIQUIDS = {'milk':1,'soy-milk':1,'almond-milk':1,'oat-milk':1,'orange-juice':1,'cola':1,'coffee':1,'shake-rtd':1,'shake-water':1,'shake-milk':1};
+function formMatch(sel, i){ return sel===undefined || (Array.isArray(sel) ? sel.indexOf(i)>=0 : sel===i); }
+// Typical sizes first, then weight units that work for every food (oz) and volume units for drinks.
 function unitsFor(food, formIdx){
   var list = food.custom ? (food.servingG>0 ? [['serving', food.servingG]] : []) : (UNITS[food.id] || []);
-  return list.filter(function(u){ return u[2]===undefined || u[2]===formIdx; }).map(function(u){ return {label:u[0], g:u[1]}; });
+  var out = list.filter(function(u){ return formMatch(u[2], formIdx); }).map(function(u){ return {label:u[0], g:u[1]}; });
+  out.push({label:'oz', g:28.35, uni:true});
+  if (food.custom ? food.liquid : LIQUIDS[food.id]){ out.push({label:'ml', g:1, uni:true}); out.push({label:'fl oz', g:29.6, uni:true}); }
+  return out;
 }
 // "150", "0.5", "1/2", "1 1/2", "1½", "½" -> number; NaN if not a positive amount
 function parseQty(str){
@@ -755,7 +817,7 @@ function dayBudget(food, burn, target, subtract){
   return {food:f, burn:b, net:n, left:target - n, state: n > target ? 'over' : n >= 0.9*target ? 'near' : 'ok',
           solidPct:100*Math.max(0, n)/max, burnPct:100*Math.min(b, f)/max, tickPct:100*target/max};
 }
-if (typeof module !== 'undefined') module.exports = {calorieKpis:calorieKpis,CARBS:CARBS,workoutKcalFor:workoutKcalFor,dayBudget:dayBudget,WORKOUT_TYPES:WORKOUT_TYPES,INTENSITIES:INTENSITIES,workoutKcal:workoutKcal,weekStart:weekStart,weekSummary:weekSummary,lastLift:lastLift,calorieBar:calorieBar,MEALS:MEALS,mealForHour:mealForHour,entryKey:entryKey,frequentFoods:frequentFoods,UNITS:UNITS,unitsFor:unitsFor,parseQty:parseQty,fmtQty:fmtQty,rangeDays:rangeDays,CATEGORIES:CATEGORIES,bmr:bmr,targets:targets,entryNutrition:entryNutrition,totalsFor:totalsFor,addDays:addDays,lastDays:lastDays,FOODS:FOODS,fmtDate:fmtDate};
+if (typeof module !== 'undefined') module.exports = {LIQUIDS:LIQUIDS,calorieKpis:calorieKpis,CARBS:CARBS,workoutKcalFor:workoutKcalFor,dayBudget:dayBudget,WORKOUT_TYPES:WORKOUT_TYPES,INTENSITIES:INTENSITIES,workoutKcal:workoutKcal,weekStart:weekStart,weekSummary:weekSummary,lastLift:lastLift,calorieBar:calorieBar,MEALS:MEALS,mealForHour:mealForHour,entryKey:entryKey,frequentFoods:frequentFoods,UNITS:UNITS,unitsFor:unitsFor,parseQty:parseQty,fmtQty:fmtQty,rangeDays:rangeDays,CATEGORIES:CATEGORIES,bmr:bmr,targets:targets,entryNutrition:entryNutrition,totalsFor:totalsFor,addDays:addDays,lastDays:lastDays,FOODS:FOODS,fmtDate:fmtDate};
 </script>
 
 <script id="app">
@@ -856,7 +918,7 @@ if (typeof module !== 'undefined') module.exports = {calorieKpis:calorieKpis,CAR
   // ---------- helpers ----------
   function esc(s){ return String(s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
   function allFoods(){
-    return FOODS.concat(state.customFoods.map(function(c){ return {cat:'My foods', id:c.id, name:c.name, forms:[['As is',c.kcal,c.protein,c.carbs]], custom:true, servingG:c.servingG}; }));
+    return FOODS.concat(state.customFoods.map(function(c){ return {cat:'My foods', id:c.id, name:c.name, forms:[['As is',c.kcal,c.protein,c.carbs]], custom:true, servingG:c.servingG, liquid:c.liquid}; }));
   }
   function findFood(id){ return allFoods().filter(function(f){ return f.id===id; })[0]; }
   function fmt(n,d){ return Number(n).toLocaleString(undefined,{maximumFractionDigits:d||0}); }
@@ -887,13 +949,17 @@ if (typeof module !== 'undefined') module.exports = {calorieKpis:calorieKpis,CAR
     renderUnits(false);
   }
   var autoFilled = false;
+  var lastUnitG = 1;           // grams per one of the currently selected unit (1 for grams)
   function renderUnits(keep){
     var f = findFood($('food').value), us = f ? unitsFor(f, Number($('cook').value)||0) : [];
+    var nat = us.filter(function(u){ return !u.uni; }), uni = us.filter(function(u){ return u.uni; });
     var prev = $('unit').value;
-    $('unit').innerHTML = us.map(function(u){ return '<option value="u:'+esc(u.label)+'">'+esc(u.label)+' (≈'+fmt(u.g,1)+' g)</option>'; }).join('')
-      + '<option value="g">grams (g)</option>';
+    var opt = function(u){ return '<option value="u:'+esc(u.label)+'">'+esc(u.label)+' (≈'+fmt(u.g,2)+' g)</option>'; };
+    $('unit').innerHTML = nat.map(opt).join('') + '<option value="g">grams (g)</option>' + uni.map(opt).join('');
     var valid = Array.prototype.some.call($('unit').options, function(o){ return o.value===prev; });
-    if (keep && valid) $('unit').value = prev;      // otherwise default to the first typical size
+    if (keep && valid) $('unit').value = prev;      // otherwise default: first typical size, or grams when the food has none
+    else $('unit').value = nat.length ? 'u:'+nat[0].label : 'g';
+    if (!(keep && valid)) hold = null;
     syncAmount();
   }
   function currentUnit(){
@@ -901,12 +967,26 @@ if (typeof module !== 'undefined') module.exports = {calorieKpis:calorieKpis,CAR
     return unitsFor(f, Number($('cook').value)||0).filter(function(u){ return 'u:'+u.label===v; })[0] || null;
   }
   function syncAmount(){
-    var isG = $('unit').value==='g' || !$('unit').value;
-    $('chips').classList.toggle('hidden', isG);
-    if (!isG && $('amount').value.trim()===''){ $('amount').value='1'; autoFilled=true; }
-    if (isG && autoFilled && $('amount').value==='1') $('amount').value='';
-    if (isG) autoFilled=false;
+    var u = currentUnit(), natural = !!u && !u.uni;
+    $('chips').classList.toggle('hidden', !natural);          // ¼ ½ 1 … buttons only make sense for pieces, cups, slices
+    if (natural && $('amount').value.trim()===''){ $('amount').value='1'; autoFilled=true; }
+    if (!natural && autoFilled && $('amount').value==='1') $('amount').value='';
+    if (!natural) autoFilled=false;
+    lastUnitG = u ? u.g : 1;
     preview();
+  }
+  // Switching unit keeps the same quantity of food: 150 g becomes 5.3 oz, or about 1 slice, and back again.
+  var hold = null;             // exact grams behind the amount shown, so switching units back and forth does not drift
+  function convertAmount(){
+    var q = parseQty($('amount').value), u = currentUnit(), newG = u ? u.g : 1;
+    if (!isNaN(q)){
+      var grams = (hold && hold.shown===$('amount').value) ? hold.grams : q*lastUnitG;
+      var v = grams/newG;
+      $('amount').value = (u && !u.uni) ? fmtQty(v) : String(Math.round(v*(newG===1?10:100))/(newG===1?10:100));
+      hold = {grams:grams, shown:$('amount').value};
+      autoFilled = false;
+    }
+    syncAmount();
   }
   function applyMode(){
     var m = $('manual').checked;
@@ -928,7 +1008,7 @@ if (typeof module !== 'undefined') module.exports = {calorieKpis:calorieKpis,CAR
     var p = currentPer100(), g = currentGrams(), u = currentUnit();
     if (!p){ $('preview').textContent=''; return; }
     var n = entryNutrition(p, g, $('fat').value);
-    $('preview').textContent = (g>0 ? (u?'≈'+fmt(g,1)+' g (typical size) · ':'')+fmt(n.kcal)+' kcal · '+fmt(n.protein,1)+' g protein · '+(p.carbs===undefined?'carbs unknown':fmt(n.carbs,1)+' g carbs') : 'Enter an amount')
+    $('preview').textContent = (g>0 ? (u?'≈'+fmt(g,1)+' g'+(u.uni?'':' (typical size)')+' · ':'')+fmt(n.kcal)+' kcal · '+fmt(n.protein,1)+' g protein · '+(p.carbs===undefined?'carbs unknown':fmt(n.carbs,1)+' g carbs') : 'Enter an amount')
       + '  (per 100 g: '+fmt(p.kcal)+' kcal, '+fmt(p.protein,1)+' g protein'+(p.carbs===undefined?'':', '+fmt(p.carbs,1)+' g carbs')+')';
   }
 
@@ -1293,8 +1373,8 @@ if (typeof module !== 'undefined') module.exports = {calorieKpis:calorieKpis,CAR
   $('foodSearch').addEventListener('keydown', function(ev){ if (ev.key==='Enter'){ ev.preventDefault(); $('amount').focus(); } });
   ['cook','fat','mKcal','mProt'].forEach(function(id){ $(id).addEventListener('input', preview); });
   $('cook').addEventListener('change', function(){ renderUnits(true); });
-  $('unit').addEventListener('change', syncAmount);
-  $('amount').addEventListener('input', function(){ autoFilled=false; preview(); });
+  $('unit').addEventListener('change', convertAmount);
+  $('amount').addEventListener('input', function(){ autoFilled=false; hold=null; preview(); });
   $('manual').addEventListener('change', applyMode);
   $('chips').addEventListener('click', function(ev){
     var b = ev.target.closest('button[data-q]'); if(!b) return;
@@ -1391,7 +1471,7 @@ if (typeof module !== 'undefined') module.exports = {calorieKpis:calorieKpis,CAR
     var name = $('cName').value.trim(), k = Number($('cKcal').value), p = Number($('cProt').value), cb = Number($('cCarb').value)||0;
     if (!name || !(k>=0) || !(p>=0)) return;
     var id = 'c'+Date.now();
-    var sv = Number($('cServ').value); state.customFoods.push({id:id, name:name, kcal:k, protein:p, carbs:cb, servingG: sv>0 ? sv : undefined}); persist({settings:true});
+    var sv = Number($('cServ').value); state.customFoods.push({id:id, name:name, kcal:k, protein:p, carbs:cb, servingG: sv>0 ? sv : undefined, liquid: $('cLiquid').checked || undefined}); persist({settings:true});
     $('customForm').reset(); renderFoodSelect(id); renderMyFoods();
     toast('Saved "'+name+'"', {sub:'Find it under "My foods" in the food list.'});
   });
